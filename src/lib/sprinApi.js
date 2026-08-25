@@ -121,6 +121,10 @@ export async function ambilUsulanNomorAgenda(tahun) {
   const { data, error } = await supabase
     .from('surat_perintah')
     .select('nomor_agenda')
+    // Draf boleh bernomor null (BR-17). Tanpa filter ini, order desc menaruh
+    // null paling atas (NULLS FIRST default Postgres untuk desc), sehingga
+    // usulan selalu jadi 0+1 = 1 begitu ada satu draf tanpa nomor.
+    .not('nomor_agenda', 'is', null)
     .gte('tanggal_mulai', awal)
     .lte('tanggal_mulai', akhir)
     .order('nomor_agenda', { ascending: false })
