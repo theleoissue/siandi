@@ -64,6 +64,15 @@ function petaSprin(row) {
     jumlahPersonel,
     jumlahKelompok: kelompok.length,
     kelompok,
+    penandatanganId: row.penandatangan_id ?? undefined,
+    penandatangan: row.penandatangan
+      ? `${row.penandatangan.pangkat ? `${row.penandatangan.pangkat} ` : ''}${row.penandatangan.nama} (NRP ${row.penandatangan.nrp ?? '—'})`
+      : undefined,
+    // dipakai buat isi blok tanda tangan di suratDocx.js -- beda dari `penandatangan`
+    // di atas yang cuma string tampilan buat MetaItem.
+    penandatanganDetail: row.penandatangan
+      ? { nama: row.penandatangan.nama, pangkat: row.penandatangan.pangkat, nrp: row.penandatangan.nrp }
+      : undefined,
     // Sprin arsip historis tidak punya pertimbangan/dasar/untuk tersimpan (belum
     // diambil dari sumber saat migrasi) -- detailLengkap jadi penanda untuk itu.
     // "dasar" dan "untuk" sengaja tidak diisi di sini karena belum ada kolom/tabel
@@ -74,8 +83,9 @@ function petaSprin(row) {
 
 const SELECT_SPRIN_LENGKAP = `
   id, nomor_lengkap, perihal, pertimbangan, lokasi, tanggal_mulai, tanggal_selesai,
-  jam_apel, status, catatan_pemeriksaan, butir_untuk,
+  jam_apel, status, catatan_pemeriksaan, butir_untuk, penandatangan_id,
   jenis_kegiatan:jenis_kegiatan_id ( nama, kode_klasifikasi ),
+  penandatangan:penandatangan_id ( nama, pangkat, nrp ),
   sprin_dasar_hukum_baku ( urutan, dasar_hukum_baku ( teks ) ),
   sprin_kelompok (
     id, nama_kelompok, kelompok_besar, sifat, urutan,
@@ -323,4 +333,15 @@ export async function kembalikanSprinDb(id, catatanPemeriksaan) {
     .from('log_aktivitas')
     .insert({ pengguna_id: pgId, surat_perintah_id: id, aksi: 'DIKEMBALIKAN' })
   if (logErr) throw logErr
+}
+
+// Penandatangan dipilih terpisah dari alur draf/approval (lihat catatan di
+// migration penandatangan_sprin.sql) -- hanya untuk Sprin yang sudah TERBIT,
+// dan role-nya dibatasi di dalam RPC itu sendiri, bukan di sini.
+export async function tetapkanPenandatanganDb(sprinId, penandatanganId) {
+  const { error } = await supabase.rpc('tetapkan_penandatangan', {
+    p_sprin_id: sprinId,
+    p_penandatangan_id: penandatanganId,
+  })
+  if (error) throw new Error(error.message)
 }

@@ -1,10 +1,121 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { IconCheck } from '../components/icons'
 import { useSprinStore, STATUS_BADGE_STYLE } from '../lib/sprinContext'
 import { buatBlobSuratDocx, bisaDicetakSurat } from '../features/export/suratDocx'
 import { buatBlobLampiranXlsx } from '../features/export/lampiranXlsx'
 import { unduhBlob, namaFileAman } from '../features/export/downloadBlob'
+import { cariPersonelDb } from '../lib/personelApi'
+
+const PERAN_BOLEH_UBAH_PENANDATANGAN = ['KASUBBAG_BINOPS', 'PAURMIN', 'STAF_ADMIN']
+
+function PemilihPenandatangan({ sprin, onSelesai }) {
+  const { tetapkanPenandatangan } = useSprinStore()
+  const [terbuka, setTerbuka] = useState(false)
+  const [kataKunci, setKataKunci] = useState('')
+  const [hasil, setHasil] = useState([])
+  const [mencari, setMencari] = useState(false)
+  const [menyimpan, setMenyimpan] = useState(false)
+  const [error, setError] = useState('')
+
+  useEffect(() => {
+    if (!terbuka || kataKunci.trim().length < 2) {
+      setHasil([])
+      return
+    }
+    let dibatalkan = false
+    setMencari(true)
+    const timer = setTimeout(() => {
+      cariPersonelDb(kataKunci)
+        .then((r) => {
+          if (!dibatalkan) setHasil(r)
+        })
+        .finally(() => {
+          if (!dibatalkan) setMencari(false)
+        })
+    }, 300)
+    return () => {
+      dibatalkan = true
+      clearTimeout(timer)
+    }
+  }, [kataKunci, terbuka])
+
+  async function pilih(orang) {
+    setMenyimpan(true)
+    setError('')
+    try {
+      await tetapkanPenandatangan(sprin.id, orang.id)
+      setTerbuka(false)
+      setKataKunci('')
+      onSelesai?.()
+    } catch (err) {
+      setError(err.message ?? 'Gagal menetapkan penandatangan.')
+    } finally {
+      setMenyimpan(false)
+    }
+  }
+
+  if (!terbuka) {
+    return (
+      <button type="button" onClick={() => setTerbuka(true)} className="text-xs font-semibold" style={{ color: '#0E1B2C' }}>
+        {sprin.penandatangan ? 'Ubah' : 'Pilih penandatangan'}
+      </button>
+    )
+  }
+
+  return (
+    <div className="mt-1.5 max-w-sm">
+      <input
+        autoFocus
+        placeholder="Cari nama atau NRP…"
+        className="w-full rounded px-2.5 py-1.5 text-xs outline-none focus:ring-2"
+        style={{ border: '1px solid #DDE3EA', color: '#1A2634', backgroundColor: '#FFFFFF' }}
+        value={kataKunci}
+        onChange={(e) => setKataKunci(e.target.value)}
+        disabled={menyimpan}
+      />
+      {mencari && (
+        <div className="mt-1 text-xs" style={{ color: '#67788C' }}>
+          Mencari…
+        </div>
+      )}
+      {hasil.length > 0 && (
+        <div className="mt-1 max-h-40 overflow-y-auto rounded" style={{ border: '1px solid #DDE3EA' }}>
+          {hasil.map((p) => (
+            <button
+              key={p.id}
+              type="button"
+              disabled={menyimpan}
+              onClick={() => pilih(p)}
+              className="block w-full px-2.5 py-1.5 text-left text-xs hover:opacity-80"
+              style={{ borderTop: '1px solid #DDE3EA' }}
+            >
+              {p.pangkat ? `${p.pangkat} ` : ''}
+              {p.nama} · {p.nrp}
+            </button>
+          ))}
+        </div>
+      )}
+      <button
+        type="button"
+        onClick={() => {
+          setTerbuka(false)
+          setKataKunci('')
+          setError('')
+        }}
+        className="mt-1 text-xs font-semibold"
+        style={{ color: '#67788C' }}
+      >
+        Batal
+      </button>
+      {error && (
+        <p className="mt-1 text-xs font-semibold" style={{ color: '#B3261E' }}>
+          {error}
+        </p>
+      )}
+    </div>
+  )
+}
 
 function IconDownload(props) {
   return (
@@ -98,7 +209,7 @@ export default function SprinDetail({ peranSaya }) {
   async function handleUnduhSurat() {
     setMengunduh('surat')
     try {
-      const blob = await buatBlobSuratDocx(sprin)
+      const blob = await buatBlobSuratDocx(sprin, sprin.penandatanganDetail)
       unduhBlob(blob, `${namaFileAman(sprin.nomorLengkap)}.docx`)
     } catch (err) {
       setPesanError(err.message ?? 'Gagal membuat berkas surat.')
@@ -219,7 +330,15 @@ export default function SprinDetail({ peranSaya }) {
                 <MetaItem label="Kode klasifikasi" value={sprin.kodeKlasifikasi} />
                 <MetaItem label="Waktu" value={sprin.waktuPanjang} />
                 <MetaItem label="Apel" value={sprin.apelLabel} />
-                <MetaItem label="Penandatangan" value={sprin.penandatangan} />
+                <div>
+                  <div className="text-xs uppercase tracking-wide" style={{ color: '#67788C' }}>
+                    Penandatangan
+                  </div>
+                  <div className="mt-0.5 text-sm">{sprin.penandatangan ?? 'Belum dipilih (pakai default Kapolres)'}</div>
+                  {sprin.status === 'Terbit' && PERAN_BOLEH_UBAH_PENANDATANGAN.includes(peranSaya) && (
+                    <PemilihPenandatangan sprin={sprin} />
+                  )}
+                </div>
                 <MetaItem label="Pertimbangan" value={sprin.pertimbangan} />
               </div>
               <div className="space-y-4">

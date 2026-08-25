@@ -17,7 +17,7 @@ export async function cariPersonelDb(kataKunci, satuanFungsi, maks = 20) {
 
   let query = supabase
     .from('pengguna')
-    .select('nama, pangkat, nrp, jabatan_struktur, satuan_fungsi')
+    .select('id, nama, pangkat, nrp, jabatan_struktur, satuan_fungsi')
     .eq('status_aktif', true) // BR-15
     .not('nrp', 'is', null)
   if (satuanFungsi) query = query.eq('satuan_fungsi', satuanFungsi)
@@ -26,6 +26,7 @@ export async function cariPersonelDb(kataKunci, satuanFungsi, maks = 20) {
   const { data, error } = await query.order('nama').limit(maks)
   if (error) throw error
   return (data ?? []).map((p) => ({
+    id: p.id,
     nama: p.nama,
     pangkat: p.pangkat,
     nrp: p.nrp,

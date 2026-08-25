@@ -35,11 +35,15 @@ export function AuthProvider({ children }) {
   // Dipanggil manual setelah daftar() -- signUp() memicu fetch profil di atas
   // lebih cepat dari tautkan_akun_baru() selesai (race), jadi hasil pertama
   // sering masih null. Perlu ditarik ulang begitu link-nya benar-benar selesai.
+  // Ambil session langsung dari SDK (bukan dari state `session` di closure) --
+  // fungsi ini dipanggil di render yang sama dengan daftar(), sebelum React
+  // sempat re-render dan memperbarui `session`, jadi closure-nya masih basi.
   async function muatUlangProfil() {
-    if (!session) return
+    const { data } = await supabase.auth.getSession()
+    if (!data.session) return
     setMemuatProfil(true)
-    const { data, error } = await ambilProfilSaya(session.user.id)
-    setProfil(error ? null : data)
+    const { data: profilBaru, error } = await ambilProfilSaya(data.session.user.id)
+    setProfil(error ? null : profilBaru)
     setMemuatProfil(false)
   }
 
