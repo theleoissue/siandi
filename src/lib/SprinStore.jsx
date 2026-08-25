@@ -61,11 +61,32 @@ const SPRIN_AWAL = [
   },
 ]
 
+// Dua entri riwayat, diambil persis dari SIANDI_Mockup_v3.html (halaman Log Aktivitas),
+// dari sebelum sesi ini dimulai -- aksi baru di sesi ini ditambahkan di atasnya.
+const LOG_AWAL = [
+  { id: 'log-awal-1', aksi: 'Menyetujui Sprin/1702/VII/PAM.3.2./2026', pelaku: 'KOMPOL SAEFUL BAHRI', waktuLabel: '09 Agu 2026 08:40', warna: '#1F7A4D' },
+  { id: 'log-awal-2', aksi: 'Memperbarui data personel dari DATA KUATPERS Juli 2026', pelaku: 'AKP DEVI PUSPA SARI', waktuLabel: '08 Agu 2026 15:02', warna: '#67788C' },
+]
+
+function formatWaktuLog(d) {
+  const bulan = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des']
+  const pad = (n) => String(n).padStart(2, '0')
+  return `${pad(d.getDate())} ${bulan[d.getMonth()]} ${d.getFullYear()} ${pad(d.getHours())}:${pad(d.getMinutes())}`
+}
+
 export function SprinStoreProvider({ children }) {
   const [daftar, setDaftar] = useState(SPRIN_AWAL)
   const [notifikasi, setNotifikasi] = useState([])
+  const [logAktivitas, setLogAktivitas] = useState(LOG_AWAL)
   const [nextId, setNextId] = useState(1)
   const [nextNotifId, setNextNotifId] = useState(1)
+  const [nextLogId, setNextLogId] = useState(1)
+
+  function catatLog(aksi, pelaku, warna) {
+    const id = `log-${nextLogId}`
+    setNextLogId((n) => n + 1)
+    setLogAktivitas((prev) => [{ id, aksi, pelaku: pelaku ?? 'Sistem', waktuLabel: formatWaktuLog(new Date()), warna }, ...prev])
+  }
 
   function ajukanSprin(data) {
     const id = `baru-${nextId}`
@@ -97,12 +118,15 @@ export function SprinStoreProvider({ children }) {
     setNotifikasi((prev) => [...baru, ...prev])
   }
 
-  function setujuiSprin(id, catatanPemeriksaan) {
-    // Efek samping (kirim notifikasi) sengaja dijalankan DI LUAR updater setDaftar --
-    // React StrictMode memanggil updater dua kali untuk memeriksa kemurniannya, jadi
-    // efek samping yang ditaruh di dalamnya akan ikut terpanggil dua kali juga.
+  function setujuiSprin(id, catatanPemeriksaan, pelaku) {
+    // Efek samping (kirim notifikasi, catat log) sengaja dijalankan DI LUAR updater
+    // setDaftar -- React StrictMode memanggil updater dua kali untuk memeriksa
+    // kemurniannya, jadi efek samping yang ditaruh di dalamnya ikut terpanggil dua kali.
     const sprin = daftar.find((s) => s.id === id)
-    if (sprin) kirimNotifikasiTerbit({ ...sprin, status: 'Terbit' })
+    if (sprin) {
+      kirimNotifikasiTerbit({ ...sprin, status: 'Terbit' })
+      catatLog(`Menyetujui ${sprin.nomorLengkap}`, pelaku, '#1F7A4D')
+    }
     setDaftar((prev) =>
       prev.map((s) =>
         s.id === id ? { ...s, status: 'Terbit', catatanPemeriksaan: catatanPemeriksaan || null } : s,
@@ -110,7 +134,9 @@ export function SprinStoreProvider({ children }) {
     )
   }
 
-  function kembalikanSprin(id, catatanPemeriksaan) {
+  function kembalikanSprin(id, catatanPemeriksaan, pelaku) {
+    const sprin = daftar.find((s) => s.id === id)
+    if (sprin) catatLog(`Mengembalikan ${sprin.nomorLengkap}`, pelaku, '#B3261E')
     setDaftar((prev) =>
       prev.map((s) => (s.id === id ? { ...s, status: 'Dikembalikan', catatanPemeriksaan } : s)),
     )
@@ -165,6 +191,7 @@ export function SprinStoreProvider({ children }) {
         notifikasiUntuk,
         tandaiNotifikasiDibaca,
         riwayatUntuk,
+        logAktivitas,
       }}
     >
       {children}

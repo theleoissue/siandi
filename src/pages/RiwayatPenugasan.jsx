@@ -63,7 +63,7 @@ export default function RiwayatPenugasan() {
                 className="block w-full rounded px-2.5 py-1.5 text-left text-xs"
                 style={{ border: '1px solid #DDE3EA' }}
               >
-                <span className="font-medium">{p.nama}</span>{' '}
+                <span className="font-medium">{p.pangkat} {p.nama}</span>{' '}
                 <span style={{ color: '#67788C', fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Consolas, monospace' }}>
                   · {p.nrp}
                 </span>
@@ -76,7 +76,7 @@ export default function RiwayatPenugasan() {
           <>
             <div className="mt-3 flex flex-wrap gap-6 text-xs" style={{ color: '#67788C' }}>
               <span>
-                Terpilih <b style={{ color: '#1A2634' }}>{terpilih.nama}</b>
+                Terpilih <b style={{ color: '#1A2634' }}>{terpilih.pangkat} {terpilih.nama}</b>
               </span>
               <span>
                 NRP{' '}

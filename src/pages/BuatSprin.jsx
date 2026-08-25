@@ -461,7 +461,7 @@ export default function BuatSprin() {
                 <ul className="space-y-1 pt-1 text-xs">
                   {kelompokAktif.personel.map((p) => (
                     <li key={p.nrp} className="flex items-center justify-between gap-2 rounded px-2 py-1" style={{ backgroundColor: '#FFFFFF', border: '1px solid #DDE3EA' }}>
-                      <span className="truncate">{p.nama}</span>
+                      <span className="truncate">{p.pangkat} {p.nama}</span>
                       <span style={{ color: '#67788C', fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Consolas, monospace' }}>
                         {p.nrp}
                       </span>
@@ -493,7 +493,7 @@ export default function BuatSprin() {
               >
                 <IconPlus size={13} className="shrink-0" color="#67788C" />
                 <div className="min-w-0 flex-1">
-                  <div className="truncate font-medium">{p.nama}</div>
+                  <div className="truncate font-medium">{p.pangkat} {p.nama}</div>
                   <div className="truncate" style={{ color: '#67788C', fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Consolas, monospace' }}>
                     {p.nrp} · {p.jabatanStruktur}
                   </div>

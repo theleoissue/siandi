@@ -23,7 +23,7 @@ function IconX(props) {
   )
 }
 
-export default function SprinDetail({ peranSaya }) {
+export default function SprinDetail({ peranSaya, namaSaya }) {
   const { id } = useParams()
   const navigate = useNavigate()
   const { cariSprin, setujuiSprin, kembalikanSprin } = useSprinStore()
@@ -44,12 +44,12 @@ export default function SprinDetail({ peranSaya }) {
   const bisaMemutuskan = peranSaya === 'KABAG_OPS' && sprin.status === 'Menunggu Persetujuan'
 
   function handleSetujui() {
-    setujuiSprin(sprin.id, catatan)
+    setujuiSprin(sprin.id, catatan, namaSaya)
   }
 
   function handleKembalikan() {
     if (!catatan.trim()) return
-    kembalikanSprin(sprin.id, catatan)
+    kembalikanSprin(sprin.id, catatan, namaSaya)
   }
 
   return (
