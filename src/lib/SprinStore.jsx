@@ -1,4 +1,5 @@
-import { createContext, useContext, useState } from 'react'
+import { useState } from 'react'
+import { SprinContext } from './sprinContext'
 
 // Sembilan Sprin nyata, diambil persis dari SIANDI_Mockup_v3.html (halaman Daftar Sprin).
 // detailLengkap:false karena isi lengkap (pertimbangan/dasar/untuk/lampiran) belum
@@ -59,14 +60,6 @@ const SPRIN_AWAL = [
     status: 'Terbit', detailLengkap: false,
   },
 ]
-
-export const STATUS_BADGE_STYLE = {
-  Terbit: { backgroundColor: '#E8F5EE', color: '#1F7A4D' },
-  'Menunggu Persetujuan': { backgroundColor: '#FDF6E3', color: '#8A6100' },
-  Dikembalikan: { backgroundColor: '#FDECEA', color: '#B3261E' },
-}
-
-const SprinContext = createContext(null)
 
 export function SprinStoreProvider({ children }) {
   const [daftar, setDaftar] = useState(SPRIN_AWAL)
@@ -143,10 +136,4 @@ export function SprinStoreProvider({ children }) {
       {children}
     </SprinContext.Provider>
   )
-}
-
-export function useSprinStore() {
-  const ctx = useContext(SprinContext)
-  if (!ctx) throw new Error('useSprinStore harus dipakai di dalam SprinStoreProvider')
-  return ctx
 }

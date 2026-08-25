@@ -1,6 +1,6 @@
 import { useNavigate } from 'react-router-dom'
 import { IconBell } from '../components/icons'
-import { useSprinStore } from '../lib/SprinStore'
+import { useSprinStore } from '../lib/sprinContext'
 
 export default function Notifikasi({ nrpSaya }) {
   const { notifikasiUntuk, tandaiNotifikasiDibaca } = useSprinStore()

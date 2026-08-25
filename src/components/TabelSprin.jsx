@@ -1,5 +1,5 @@
 import { useNavigate } from 'react-router-dom'
-import { STATUS_BADGE_STYLE } from '../lib/SprinStore'
+import { STATUS_BADGE_STYLE } from '../lib/sprinContext'
 
 export default function TabelSprin({ daftar, pesanKosong }) {
   const navigate = useNavigate()

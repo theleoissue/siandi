@@ -1,7 +1,7 @@
 import { useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { IconChevronRight } from '../components/icons'
-import { useSprinStore, STATUS_BADGE_STYLE } from '../lib/SprinStore'
+import { useSprinStore, STATUS_BADGE_STYLE } from '../lib/sprinContext'
 
 const BEBAN_PENUGASAN = [
   { nama: 'KOMPOL SAEFUL BAHRI, S. Pd. I.', jumlah: 7 },

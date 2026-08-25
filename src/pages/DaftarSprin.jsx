@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import TabelSprin from '../components/TabelSprin'
-import { useSprinStore } from '../lib/SprinStore'
+import { useSprinStore } from '../lib/sprinContext'
 
 const TABS = ['Semua', 'Menunggu', 'Terbit', 'Dikembalikan']
 const TAB_KE_STATUS = { Menunggu: 'Menunggu Persetujuan', Terbit: 'Terbit', Dikembalikan: 'Dikembalikan' }

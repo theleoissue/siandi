@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { IconInfo, IconCheck, IconPlus, IconFolderPlus } from '../components/icons'
 import { JENIS_KEGIATAN_OPTIONS, PRESET_UNJUK_RASA, bangunButirUntuk } from '../lib/jenisKegiatanPreset'
 import { cariPersonelContoh } from '../lib/personelContoh'
-import { useSprinStore } from '../lib/SprinStore'
+import { useSprinStore } from '../lib/sprinContext'
 import { romawiBulan, tanggalDenganHari, labelWaktu } from '../lib/format'
 
 const inputStyle = {

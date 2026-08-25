@@ -1,6 +1,6 @@
 import { useMemo } from 'react'
 import TabelSprin from '../components/TabelSprin'
-import { useSprinStore } from '../lib/SprinStore'
+import { useSprinStore } from '../lib/sprinContext'
 
 export default function Persetujuan() {
   const { daftar } = useSprinStore()

@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { IconCheck } from '../components/icons'
-import { useSprinStore, STATUS_BADGE_STYLE } from '../lib/SprinStore'
+import { useSprinStore, STATUS_BADGE_STYLE } from '../lib/sprinContext'
 
 function IconX(props) {
   return (
