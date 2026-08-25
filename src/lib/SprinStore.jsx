@@ -129,9 +129,43 @@ export function SprinStoreProvider({ children }) {
     setNotifikasi((prev) => prev.map((n) => (n.id === id ? { ...n, dibaca: true } : n)))
   }
 
+  // Riwayat Penugasan: baris dari setiap Sprin yang punya data kelompok/personel
+  // (hanya Sprin yang dibuat lewat Buat Sprin di sesi ini -- 9 Sprin arsip belum
+  // punya rincian personel per baris, menyusul di tahap sambungkan data asli).
+  function riwayatUntuk(nrp) {
+    if (!nrp) return []
+    const baris = []
+    for (const s of daftar) {
+      if (!s.kelompok) continue
+      for (const k of s.kelompok) {
+        const p = k.personel.find((pp) => pp.nrp === nrp)
+        if (p) {
+          baris.push({
+            sprinId: s.id,
+            perihal: s.perihal,
+            nomorLengkap: s.nomorLengkap,
+            status: s.status,
+            waktuLabel: s.waktuLabel,
+            jabatanLabel: `${k.kelompokBesar ? k.kelompokBesar + ' · ' : ''}${k.nama} sebagai ${p.jabatanOperasional ?? k.nama}`,
+          })
+        }
+      }
+    }
+    return baris
+  }
+
   return (
     <SprinContext.Provider
-      value={{ daftar, ajukanSprin, setujuiSprin, kembalikanSprin, cariSprin, notifikasiUntuk, tandaiNotifikasiDibaca }}
+      value={{
+        daftar,
+        ajukanSprin,
+        setujuiSprin,
+        kembalikanSprin,
+        cariSprin,
+        notifikasiUntuk,
+        tandaiNotifikasiDibaca,
+        riwayatUntuk,
+      }}
     >
       {children}
     </SprinContext.Provider>

@@ -7,6 +7,7 @@ import DaftarSprin from './pages/DaftarSprin'
 import Persetujuan from './pages/Persetujuan'
 import SprinDetail from './pages/SprinDetail'
 import Notifikasi from './pages/Notifikasi'
+import RiwayatPenugasan from './pages/RiwayatPenugasan'
 import SegeraHadir from './pages/SegeraHadir'
 import { CONTOH_USER_BY_VIEW_ROLE } from './lib/menu'
 import { SprinStoreProvider } from './lib/SprinStore'
@@ -41,7 +42,7 @@ export default function App() {
           <Route path="/persetujuan" element={<Persetujuan />} />
           <Route path="/sprin/:id" element={<SprinDetail peranSaya={user.peran_sistem} />} />
           <Route path="/arsip" element={<SegeraHadir judul="Arsip & Pencarian" />} />
-          <Route path="/riwayat" element={<SegeraHadir judul="Riwayat Penugasan" />} />
+          <Route path="/riwayat" element={<RiwayatPenugasan />} />
           <Route path="/notifikasi" element={<Notifikasi nrpSaya={user.nrp} />} />
           <Route path="/data-personel" element={<SegeraHadir judul="Data Personel" />} />
           <Route path="/jenis-kegiatan" element={<SegeraHadir judul="Jenis Kegiatan" />} />
