@@ -10,6 +10,7 @@ import Notifikasi from './pages/Notifikasi'
 import RiwayatPenugasan from './pages/RiwayatPenugasan'
 import Arsip from './pages/Arsip'
 import DataPersonel from './pages/DataPersonel'
+import JenisKegiatan from './pages/JenisKegiatan'
 import SegeraHadir from './pages/SegeraHadir'
 import { CONTOH_USER_BY_VIEW_ROLE } from './lib/menu'
 import { SprinStoreProvider } from './lib/SprinStore'
@@ -48,7 +49,7 @@ export default function App() {
           <Route path="/riwayat" element={<RiwayatPenugasan />} />
           <Route path="/notifikasi" element={<Notifikasi nrpSaya={user.nrp} />} />
           <Route path="/data-personel" element={<DataPersonel />} />
-          <Route path="/jenis-kegiatan" element={<SegeraHadir judul="Jenis Kegiatan" />} />
+          <Route path="/jenis-kegiatan" element={<JenisKegiatan />} />
           <Route path="/manajemen-pengguna" element={<SegeraHadir judul="Manajemen Pengguna" />} />
           <Route path="/log-aktivitas" element={<SegeraHadir judul="Log Aktivitas" />} />
         </Route>
