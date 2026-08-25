@@ -97,6 +97,71 @@ export function IconChevronRight(props) {
   )
 }
 
-// Catatan: ikon untuk menu lain (Persetujuan, Data Personel, Jenis Kegiatan,
-// Manajemen Pengguna, Log Aktivitas) BELUM diambil dari mockup asli — akan
-// ditambahkan begitu halaman-halaman itu dibangun, supaya tetap sama persis.
+export function IconSquareCheckBig(props) {
+  return (
+    <Icon {...props}>
+      <path d="M21 10.656V19a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h12.344" />
+      <path d="m9 11 3 3L22 4" />
+    </Icon>
+  )
+}
+
+export function IconScrollText(props) {
+  return (
+    <Icon {...props}>
+      <path d="M15 12h-5" />
+      <path d="M15 8h-5" />
+      <path d="M19 17V5a2 2 0 0 0-2-2H4" />
+      <path d="M8 21h12a2 2 0 0 0 2-2v-1a1 1 0 0 0-1-1H11a1 1 0 0 0-1 1v1a2 2 0 1 1-4 0V5a2 2 0 1 0-4 0v2a1 1 0 0 0 1 1h3" />
+    </Icon>
+  )
+}
+
+export function IconUsers(props) {
+  return (
+    <Icon {...props}>
+      <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
+      <path d="M16 3.128a4 4 0 0 1 0 7.744" />
+      <path d="M22 21v-2a4 4 0 0 0-3-3.87" />
+      <circle cx="9" cy="7" r="4" />
+    </Icon>
+  )
+}
+
+export function IconLayers(props) {
+  return (
+    <Icon {...props}>
+      <path d="M12.83 2.18a2 2 0 0 0-1.66 0L2.6 6.08a1 1 0 0 0 0 1.83l8.58 3.91a2 2 0 0 0 1.66 0l8.58-3.9a1 1 0 0 0 0-1.83z" />
+      <path d="M2 12a1 1 0 0 0 .58.91l8.6 3.91a2 2 0 0 0 1.65 0l8.58-3.9A1 1 0 0 0 22 12" />
+      <path d="M2 17a1 1 0 0 0 .58.91l8.6 3.91a2 2 0 0 0 1.65 0l8.58-3.9A1 1 0 0 0 22 17" />
+    </Icon>
+  )
+}
+
+export function IconUserCog(props) {
+  return (
+    <Icon {...props}>
+      <path d="M10 15H6a4 4 0 0 0-4 4v2" />
+      <path d="m14.305 16.53.923-.382" />
+      <path d="m15.228 13.852-.923-.383" />
+      <path d="m16.852 12.228-.383-.923" />
+      <path d="m16.852 17.772-.383.924" />
+      <path d="m19.148 12.228.383-.923" />
+      <path d="m19.53 18.696-.382-.924" />
+      <path d="m20.772 13.852.924-.383" />
+      <path d="m20.772 16.148.924.383" />
+      <circle cx="18" cy="15" r="3" />
+      <circle cx="9" cy="7" r="4" />
+    </Icon>
+  )
+}
+
+export function IconLogOut(props) {
+  return (
+    <Icon {...props}>
+      <path d="m16 17 5-5-5-5" />
+      <path d="M21 12H9" />
+      <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+    </Icon>
+  )
+}

@@ -1,3 +1,5 @@
+import { IconLogOut } from './icons'
+
 const ROLE_OPTIONS = [
   { value: 'pimpinan', label: 'Pimpinan' },
   { value: 'kabagops', label: 'Kabag Ops' },
@@ -39,9 +41,10 @@ export default function Topbar({ nama, jabatan, viewAsRole, onChangeViewAsRole, 
         <button
           type="button"
           onClick={onKeluar}
-          className="rounded px-3 py-1.5 text-xs font-medium"
+          className="flex items-center gap-1.5 rounded px-2.5 py-1.5 text-xs"
           style={{ border: '1px solid #DDE3EA', color: '#67788C' }}
         >
+          <IconLogOut size={13} />
           Keluar
         </button>
       </div>

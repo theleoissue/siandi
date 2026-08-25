@@ -3,38 +3,42 @@ import { Routes, Route } from 'react-router-dom'
 import Layout from './components/Layout'
 import Dashboard from './pages/Dashboard'
 import SegeraHadir from './pages/SegeraHadir'
+import { CONTOH_USER_BY_VIEW_ROLE } from './lib/menu'
 
-// Sementara: user contoh untuk kerja tahap breakout tampilan.
-// Akan diganti sesi auth Supabase asli di tahap "sambungkan data asli".
-const CONTOH_USER = {
-  nama: 'AKP DEVI PUSPA SARI, S.Pd., M.M.',
-  jabatan: 'KASUBBAG BINOPS BAG OPS',
-  peran_sistem: 'KASUBBAG_BINOPS',
-  jumlahPersonel: 1171,
-  jumlahSprin: 9,
-}
-
+// Sementara: identitas & peran dikendalikan dropdown "Lihat sebagai" (fitur demo,
+// sama seperti mockup). Akan diganti sesi auth Supabase asli di tahap berikutnya.
 export default function App() {
   const [viewAsRole, setViewAsRole] = useState('binops')
+  const user = CONTOH_USER_BY_VIEW_ROLE[viewAsRole]
 
   return (
     <Routes>
       <Route
         element={
           <Layout
-            user={CONTOH_USER}
+            user={user}
+            jumlahPersonel={1171}
+            jumlahSprin={9}
             viewAsRole={viewAsRole}
             onChangeViewAsRole={setViewAsRole}
             onKeluar={() => {}}
           />
         }
       >
-        <Route path="/" element={<Dashboard />} />
+        <Route
+          path="/"
+          element={user.peran_sistem === 'PERSONEL' ? <SegeraHadir judul="Penugasan Saya" /> : <Dashboard />}
+        />
         <Route path="/buat-sprin" element={<SegeraHadir judul="Buat Sprin" />} />
         <Route path="/daftar-sprin" element={<SegeraHadir judul="Daftar Sprin" />} />
+        <Route path="/persetujuan" element={<SegeraHadir judul="Persetujuan" />} />
         <Route path="/arsip" element={<SegeraHadir judul="Arsip & Pencarian" />} />
         <Route path="/riwayat" element={<SegeraHadir judul="Riwayat Penugasan" />} />
         <Route path="/notifikasi" element={<SegeraHadir judul="Notifikasi" />} />
+        <Route path="/data-personel" element={<SegeraHadir judul="Data Personel" />} />
+        <Route path="/jenis-kegiatan" element={<SegeraHadir judul="Jenis Kegiatan" />} />
+        <Route path="/manajemen-pengguna" element={<SegeraHadir judul="Manajemen Pengguna" />} />
+        <Route path="/log-aktivitas" element={<SegeraHadir judul="Log Aktivitas" />} />
       </Route>
     </Routes>
   )

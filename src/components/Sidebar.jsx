@@ -7,6 +7,11 @@ import {
   IconSearch,
   IconRotateCcwClock,
   IconBell,
+  IconSquareCheckBig,
+  IconScrollText,
+  IconUsers,
+  IconLayers,
+  IconUserCog,
 } from './icons'
 
 const ICON_BY_KEY = {
@@ -16,6 +21,12 @@ const ICON_BY_KEY = {
   arsip: IconSearch,
   riwayat: IconRotateCcwClock,
   notifikasi: IconBell,
+  persetujuan: IconSquareCheckBig,
+  'log-aktivitas': IconScrollText,
+  'data-personel': IconUsers,
+  'jenis-kegiatan': IconLayers,
+  'manajemen-pengguna': IconUserCog,
+  'penugasan-saya': IconRotateCcwClock,
 }
 
 export default function Sidebar({ menu, jumlahPersonel, jumlahSprin }) {
