@@ -15,16 +15,24 @@ export function SprinStoreProvider({ children }) {
   const [daftar, setDaftar] = useState([])
   const [notifikasi, setNotifikasi] = useState([])
   const [logAktivitas, setLogAktivitas] = useState([])
+  // Pemuatan pertama belum selesai -> daftar masih kosong. Tanpa penanda ini
+  // halaman detail tidak bisa membedakan "Sprin memang tidak ada" dari
+  // "datanya belum sampai", dan terlanjur bilang tidak ditemukan.
+  const [belumPernahDimuat, setBelumPernahDimuat] = useState(true)
 
   const muatUlang = useCallback(async () => {
-    const [daftarBaru, logBaru, notifBaru] = await Promise.all([
-      ambilDaftarSprin(),
-      ambilLogAktivitas(),
-      ambilNotifikasi(),
-    ])
-    setDaftar(daftarBaru)
-    setLogAktivitas(logBaru)
-    setNotifikasi(notifBaru)
+    try {
+      const [daftarBaru, logBaru, notifBaru] = await Promise.all([
+        ambilDaftarSprin(),
+        ambilLogAktivitas(),
+        ambilNotifikasi(),
+      ])
+      setDaftar(daftarBaru)
+      setLogAktivitas(logBaru)
+      setNotifikasi(notifBaru)
+    } finally {
+      setBelumPernahDimuat(false)
+    }
   }, [])
 
   useEffect(() => {
@@ -108,6 +116,7 @@ export function SprinStoreProvider({ children }) {
     <SprinContext.Provider
       value={{
         daftar,
+        belumPernahDimuat,
         ajukanSprin,
         setujuiSprin,
         kembalikanSprin,

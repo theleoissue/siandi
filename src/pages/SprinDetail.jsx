@@ -161,7 +161,7 @@ function IconX(props) {
 export default function SprinDetail({ peranSaya }) {
   const { id } = useParams()
   const navigate = useNavigate()
-  const { cariSprin, setujuiSprin, kembalikanSprin } = useSprinStore()
+  const { cariSprin, setujuiSprin, kembalikanSprin, belumPernahDimuat } = useSprinStore()
   const [tab, setTab] = useState('isi')
   const [catatan, setCatatan] = useState('')
   const [memproses, setMemproses] = useState(false)
@@ -173,8 +173,15 @@ export default function SprinDetail({ peranSaya }) {
     return (
       <main className="flex-1 overflow-y-auto p-5">
         <div className="rounded-lg p-8 text-center text-sm" style={{ backgroundColor: '#FFFFFF', border: '1px solid #DDE3EA', color: '#67788C' }}>
-          Sprin tidak ditemukan.
+          {belumPernahDimuat ? 'Memuat…' : 'Sprin tidak ditemukan.'}
         </div>
+        {!belumPernahDimuat && (
+          <div className="mt-3 text-center">
+            <button type="button" onClick={() => navigate('/')} className="text-sm font-semibold" style={{ color: '#0E1B2C' }}>
+              Kembali ke Dashboard
+            </button>
+          </div>
+        )}
       </main>
     )
   }

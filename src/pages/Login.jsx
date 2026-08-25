@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { IconShield } from '../components/icons'
 import { masuk, daftar, useAuth } from '../lib/auth'
 
@@ -9,6 +10,7 @@ const inputStyle = {
 }
 
 export default function Login() {
+  const navigate = useNavigate()
   const { muatUlangProfil } = useAuth()
   const [mode, setMode] = useState('masuk') // 'masuk' | 'daftar'
   const [nrp, setNrp] = useState('')
@@ -47,6 +49,11 @@ export default function Login() {
         await muatUlangProfil()
         setSukses('Akun berhasil dibuat dan langsung masuk.')
       }
+      // Alamat halaman tidak ikut berubah saat sesi berakhir, jadi kalau
+      // sebelumnya berhenti di /sprin/<id> alamat itu masih tersisa dan
+      // langsung dibuka lagi begitu login berhasil -- kelihatan sebagai
+      // "Sprin tidak ditemukan" alih-alih Dashboard. Selalu mulai dari awal.
+      navigate('/', { replace: true })
     } catch (err) {
       setError(err.message ?? 'Terjadi kesalahan, coba lagi.')
     } finally {
