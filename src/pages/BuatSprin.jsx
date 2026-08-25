@@ -5,6 +5,7 @@ import { JENIS_KEGIATAN_OPTIONS, PRESET_UNJUK_RASA, bangunButirUntuk } from '../
 import { cariPersonelContoh, PERSONEL_CONTOH, SATUAN_FUNGSI_OPTIONS } from '../lib/personelContoh'
 import { useSprinStore } from '../lib/sprinContext'
 import { romawiBulan } from '../lib/format'
+import { cekBentrok, ambilRiwayatPenugasanNrp } from '../lib/bentrokApi'
 
 const inputStyle = {
   border: '1px solid #DDE3EA',
@@ -51,6 +52,10 @@ export default function BuatSprin() {
   const [kelompokAktifIdx, setKelompokAktifIdx] = useState(0)
   const [pencarianPersonel, setPencarianPersonel] = useState('')
   const [filterSatuanFungsi, setFilterSatuanFungsi] = useState('')
+  // BR-07/08/09: peringatan bentrok per NRP yang sudah ditempatkan, dan status
+  // konfirmasi "tetap lanjutkan" kalau ada bentrok menonjol (kelompok PELAKSANA).
+  const [bentrokPerNrp, setBentrokPerNrp] = useState({})
+  const [tampilkanKonfirmasiBentrok, setTampilkanKonfirmasiBentrok] = useState(false)
 
   const totalPersonel = kelompok.reduce((acc, k) => acc + k.personel.length, 0)
   const kelompokAktif = kelompok[kelompokAktifIdx]
@@ -77,7 +82,16 @@ export default function BuatSprin() {
     setKelompok((prev) => prev.map((k, i) => (i === kelompokAktifIdx ? { ...k, kelompokBesar } : k)))
   }
 
-  function tambahPersonelKeKelompokAktif(personel) {
+  // Kunci bentrokPerNrp per (kelompok, nrp) -- bukan cuma nrp -- karena orang yang
+  // sama bisa ditempatkan di lebih dari satu kelompok dalam draf yang sama, dengan
+  // sifat kelompok berbeda, sehingga hasil cek bentroknya juga bisa berbeda (BR-08).
+  function kunciBentrok(idxKelompok, nrp) {
+    return `${idxKelompok}:${nrp}`
+  }
+
+  async function tambahPersonelKeKelompokAktif(personel) {
+    const kelompokTujuan = kelompokAktif
+    const idxTujuan = kelompokAktifIdx
     setKelompok((prev) =>
       prev.map((k, i) =>
         i === kelompokAktifIdx && !k.personel.some((p) => p.nrp === personel.nrp)
@@ -86,7 +100,39 @@ export default function BuatSprin() {
       ),
     )
     setPencarianPersonel('')
+    setTampilkanKonfirmasiBentrok(false)
+    if (!kelompokTujuan) return
+
+    try {
+      const riwayat = await ambilRiwayatPenugasanNrp(personel.nrp)
+      const konflik = cekBentrok(
+        {
+          tanggalMulai,
+          tanggalSelesai,
+          jamApel,
+          durasiJam: preset?.perkiraanJam,
+          sifat: kelompokTujuan.sifat === 'pengendali' ? 'PENGENDALI' : 'PELAKSANA',
+        },
+        riwayat,
+      )
+      setBentrokPerNrp((prev) => ({ ...prev, [kunciBentrok(idxTujuan, personel.nrp)]: konflik }))
+    } catch {
+      // pengecekan bentrok gagal (mis. koneksi) -- tidak menghalangi alur utama,
+      // cuma berarti peringatan tidak tampil untuk orang ini.
+    }
   }
+
+  const konflikMenonjolAktif = useMemo(() => {
+    const hasil = []
+    kelompok.forEach((k, ki) => {
+      for (const p of k.personel) {
+        for (const kf of bentrokPerNrp[kunciBentrok(ki, p.nrp)] ?? []) {
+          if (kf.menonjol) hasil.push({ nrp: p.nrp, nama: p.nama, ...kf })
+        }
+      }
+    })
+    return hasil
+  }, [kelompok, bentrokPerNrp])
 
   const butirUntuk = useMemo(() => {
     if (!preset) return null
@@ -99,8 +145,16 @@ export default function BuatSprin() {
 
   const siapDisimpan = Boolean(nomorAgenda && perihal && pertimbangan && lokasi && totalPersonel > 0 && preset)
 
-  async function handleAjukan() {
+  function handleKlikSimpan() {
     if (!siapDisimpan || menyimpan) return
+    if (konflikMenonjolAktif.length > 0 && !tampilkanKonfirmasiBentrok) {
+      setTampilkanKonfirmasiBentrok(true)
+      return
+    }
+    prosesAjukan()
+  }
+
+  async function prosesAjukan() {
     setMenyimpan(true)
     setPesanError('')
     try {
@@ -115,6 +169,13 @@ export default function BuatSprin() {
         jamApel,
         lokasi,
         kelompok,
+        konflikBentrok: konflikMenonjolAktif.map((k) => ({
+          nrp: k.nrp,
+          nama: k.nama,
+          sprinBentrok: k.nomorLengkap,
+          perihalBentrok: k.perihal,
+          tanggal: k.tanggalBentrok,
+        })),
       })
       navigate(`/sprin/${id}`)
     } catch (err) {
@@ -345,7 +406,7 @@ export default function BuatSprin() {
             <button
               type="button"
               disabled={!siapDisimpan || menyimpan}
-              onClick={handleAjukan}
+              onClick={handleKlikSimpan}
               className="inline-flex items-center gap-2 rounded px-4 py-2 text-sm font-semibold transition hover:opacity-90 disabled:opacity-40"
               style={{ backgroundColor: '#0E1B2C', color: '#FFFFFF', border: '1px solid #0E1B2C' }}
             >
@@ -360,6 +421,40 @@ export default function BuatSprin() {
               Simpan sebagai draf
             </button>
           </div>
+          {tampilkanKonfirmasiBentrok && (
+            <div className="rounded p-3 text-xs" style={{ backgroundColor: '#FDECEA', border: '1px solid #B3261E', color: '#7A1913' }}>
+              <div className="mb-2 font-semibold">
+                Ditemukan {konflikMenonjolAktif.length} peringatan bentrok penugasan:
+              </div>
+              <ul className="mb-3 space-y-1">
+                {konflikMenonjolAktif.map((k, i) => (
+                  <li key={i}>
+                    {k.nama} ({k.nrp}) juga bertugas di {k.nomorLengkap}
+                    {k.tanggalBentrok ? ` pada ${k.tanggalBentrok}` : ''}
+                  </li>
+                ))}
+              </ul>
+              <div className="flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  onClick={prosesAjukan}
+                  disabled={menyimpan}
+                  className="rounded px-3 py-1.5 font-semibold disabled:opacity-40"
+                  style={{ backgroundColor: '#B3261E', color: '#FFFFFF' }}
+                >
+                  {menyimpan ? 'Menyimpan…' : 'Tetap lanjutkan'}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setTampilkanKonfirmasiBentrok(false)}
+                  className="rounded px-3 py-1.5 font-semibold"
+                  style={{ border: '1px solid #DDE3EA', color: '#67788C' }}
+                >
+                  Batal
+                </button>
+              </div>
+            </div>
+          )}
           {pesanError && (
             <p className="text-xs font-semibold" style={{ color: '#B3261E' }}>
               {pesanError}
@@ -470,14 +565,26 @@ export default function BuatSprin() {
               </div>
               {kelompokAktif.personel.length > 0 && (
                 <ul className="space-y-1 pt-1 text-xs">
-                  {kelompokAktif.personel.map((p) => (
-                    <li key={p.nrp} className="flex items-center justify-between gap-2 rounded px-2 py-1" style={{ backgroundColor: '#FFFFFF', border: '1px solid #DDE3EA' }}>
-                      <span className="truncate">{p.pangkat} {p.nama}</span>
-                      <span style={{ color: '#67788C', fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Consolas, monospace' }}>
-                        {p.nrp}
-                      </span>
-                    </li>
-                  ))}
+                  {kelompokAktif.personel.map((p) => {
+                    const konflik = bentrokPerNrp[kunciBentrok(kelompokAktifIdx, p.nrp)] ?? []
+                    const menonjol = konflik.some((k) => k.menonjol)
+                    return (
+                      <li key={p.nrp} className="rounded px-2 py-1" style={{ backgroundColor: '#FFFFFF', border: '1px solid #DDE3EA' }}>
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="truncate">{p.pangkat} {p.nama}</span>
+                          <span style={{ color: '#67788C', fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Consolas, monospace' }}>
+                            {p.nrp}
+                          </span>
+                        </div>
+                        {konflik.length > 0 && (
+                          <div className="mt-0.5" style={{ color: menonjol ? '#B3261E' : '#67788C' }}>
+                            {menonjol ? '⚠ Bentrok: ' : 'Catatan: '}
+                            {konflik.map((k) => k.nomorLengkap).join(', ')}
+                          </div>
+                        )}
+                      </li>
+                    )
+                  })}
                 </ul>
               )}
             </div>

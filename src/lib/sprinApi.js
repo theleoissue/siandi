@@ -91,7 +91,7 @@ export async function ambilDaftarSprin() {
 export async function ambilLogAktivitas() {
   const { data, error } = await supabase
     .from('log_aktivitas')
-    .select('id, aksi, created_at, surat_perintah(nomor_lengkap), pengguna(nama, pangkat)')
+    .select('id, aksi, detail, created_at, surat_perintah(nomor_lengkap), pengguna(nama, pangkat)')
     .order('created_at', { ascending: false })
   if (error) throw error
   return (data ?? []).map(petaLog)
@@ -106,8 +106,13 @@ function formatWaktuLog(iso) {
 
 function petaLog(row) {
   const nomor = row.surat_perintah?.nomor_lengkap ?? ''
-  const teks = { TERBIT_OTOMATIS: `Menerbitkan ${nomor}`, DIKEMBALIKAN: `Mengembalikan ${nomor}` }
-  const warna = { TERBIT_OTOMATIS: '#1F7A4D', DIKEMBALIKAN: '#B3261E' }
+  const jumlahBentrok = Array.isArray(row.detail) ? row.detail.length : 0
+  const teks = {
+    TERBIT_OTOMATIS: `Menerbitkan ${nomor}`,
+    DIKEMBALIKAN: `Mengembalikan ${nomor}`,
+    PENERUSAN_BENTROK: `Meneruskan ${nomor} meski ada ${jumlahBentrok} peringatan bentrok`,
+  }
+  const warna = { TERBIT_OTOMATIS: '#1F7A4D', DIKEMBALIKAN: '#B3261E', PENERUSAN_BENTROK: '#8A6100' }
   return {
     id: row.id,
     aksi: (teks[row.aksi] ?? row.aksi).trim(),
@@ -209,6 +214,18 @@ export async function ajukanSprinDb(data) {
   if (barisPersonel.length > 0) {
     const { error: spersErr } = await supabase.from('sprin_personel').insert(barisPersonel)
     if (spersErr) throw spersErr
+  }
+
+  // BR-09: penyusun tetap boleh meneruskan draf meski ada peringatan bentrok,
+  // tapi setiap penerusan wajib tercatat di log_aktivitas dengan rinciannya.
+  if (data.konflikBentrok?.length > 0) {
+    const { error: logErr } = await supabase.from('log_aktivitas').insert({
+      pengguna_id: pgId,
+      surat_perintah_id: sp.id,
+      aksi: 'PENERUSAN_BENTROK',
+      detail: data.konflikBentrok,
+    })
+    if (logErr) throw logErr
   }
 
   return sp.id
