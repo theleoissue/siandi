@@ -54,38 +54,3 @@ export const MENU_BY_ROLE = {
   STAF_ADMIN: MENU_ADMIN,
   PERSONEL: MENU_PERSONEL,
 }
-
-// Identitas contoh per peran — dari mockup (data KUATPERS asli), dipakai untuk
-// fitur demo "Lihat sebagai" di topbar. Akan diganti sesi auth Supabase di step 4.
-export const CONTOH_USER_BY_VIEW_ROLE = {
-  pimpinan: {
-    nama: 'AKBP MOH. FARUK ROZI, S.H, S.I.K., M.Si',
-    jabatan: 'KAPOLRES CIMAHI',
-    peran_sistem: 'KAPOLRES',
-    nrp: '85052234',
-  },
-  kabagops: {
-    nama: 'KOMPOL SAEFUL BAHRI, S. Pd. I.',
-    jabatan: 'KABAG OPS',
-    peran_sistem: 'KABAG_OPS',
-    nrp: '76010326',
-  },
-  binops: {
-    nama: 'AKP DEVI PUSPA SARI, S.Pd., M.M.',
-    jabatan: 'KASUBBAG BINOPS BAG OPS',
-    peran_sistem: 'KASUBBAG_BINOPS',
-    nrp: '87121335',
-  },
-  admin: {
-    nama: 'IPDA RD ALI NURJAMAL, S.Psi., M.M.',
-    jabatan: 'PAURMIN BAG OPS',
-    peran_sistem: 'PAURMIN',
-    nrp: '87110847',
-  },
-  personel: {
-    nama: '—',
-    jabatan: '',
-    peran_sistem: 'PERSONEL',
-    nrp: '84121923',
-  },
-}

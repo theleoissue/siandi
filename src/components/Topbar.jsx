@@ -1,14 +1,6 @@
 import { IconLogOut } from './icons'
 
-const ROLE_OPTIONS = [
-  { value: 'pimpinan', label: 'Pimpinan' },
-  { value: 'kabagops', label: 'Kabag Ops' },
-  { value: 'binops', label: 'Bin Ops' },
-  { value: 'admin', label: 'Paurmin' },
-  { value: 'personel', label: 'Personel' },
-]
-
-export default function Topbar({ nama, jabatan, viewAsRole, onChangeViewAsRole, onKeluar }) {
+export default function Topbar({ nama, jabatan, onKeluar }) {
   return (
     <header
       className="flex flex-wrap items-center justify-between gap-3 px-5 py-3"
@@ -23,21 +15,6 @@ export default function Topbar({ nama, jabatan, viewAsRole, onChangeViewAsRole, 
         </div>
       </div>
       <div className="flex items-center gap-2">
-        <div className="hidden text-xs sm:block" style={{ color: '#67788C' }}>
-          Lihat sebagai
-        </div>
-        <select
-          className="rounded px-2 py-1.5 text-xs outline-none"
-          style={{ border: '1px solid #C8A24A', color: '#0E1B2C', backgroundColor: '#FDF6E3' }}
-          value={viewAsRole}
-          onChange={(e) => onChangeViewAsRole(e.target.value)}
-        >
-          {ROLE_OPTIONS.map((r) => (
-            <option key={r.value} value={r.value}>
-              {r.label}
-            </option>
-          ))}
-        </select>
         <button
           type="button"
           onClick={onKeluar}
