@@ -1,11 +1,20 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { IconInfo, IconCheck, IconPlus, IconFolderPlus } from '../components/icons'
 import { JENIS_KEGIATAN_OPTIONS, PRESET_UNJUK_RASA, bangunButirUntuk } from '../lib/jenisKegiatanPreset'
-import { cariPersonelContoh, PERSONEL_CONTOH, SATUAN_FUNGSI_OPTIONS } from '../lib/personelContoh'
+import { SATUAN_FUNGSI_OPTIONS } from '../lib/personelContoh'
+import { cariPersonelDb } from '../lib/personelApi'
 import { useSprinStore } from '../lib/sprinContext'
 import { romawiBulan } from '../lib/format'
 import { cekBentrok, ambilRiwayatPenugasanNrp } from '../lib/bentrokApi'
+import { ambilUsulanNomorAgenda } from '../lib/sprinApi'
+
+const KETERANGAN_NON_KUATPERS = [
+  { value: 'BKO', label: 'BKO' },
+  { value: 'MUTASI', label: 'Mutasi' },
+  { value: 'PENSIUN', label: 'Pensiun' },
+  { value: 'LAINNYA', label: 'Lainnya' },
+]
 
 const inputStyle = {
   border: '1px solid #DDE3EA',
@@ -43,6 +52,14 @@ export default function BuatSprin() {
   const [jamApel, setJamApel] = useState('08:00')
   const [dasarHukumRujukan, setDasarHukumRujukan] = useState('')
 
+  // BR-01: usulkan nomor agenda tertinggi + 1 saat halaman dibuka -- field tetap
+  // bisa disunting manual (lihat onChange di bawah), ini cuma nilai awal.
+  useEffect(() => {
+    ambilUsulanNomorAgenda()
+      .then((usulan) => setNomorAgenda((sekarang) => (sekarang ? sekarang : String(usulan))))
+      .catch(() => {})
+  }, [])
+
   const isPresetTersedia = jenisKegiatan === 'PENGAMANAN UNJUK RASA'
   const preset = isPresetTersedia ? PRESET_UNJUK_RASA : null
 
@@ -57,12 +74,40 @@ export default function BuatSprin() {
   const [bentrokPerNrp, setBentrokPerNrp] = useState({})
   const [tampilkanKonfirmasiBentrok, setTampilkanKonfirmasiBentrok] = useState(false)
 
+  // BR-05/BR-15: pencarian personel query langsung ke Supabase (bukan bundel
+  // statis) supaya personel status_aktif=false otomatis tersaring dari
+  // penempatan Sprin baru, sementara riwayat lama mereka tetap utuh di tempat lain.
+  const [hasilPencarian, setHasilPencarian] = useState([])
+  const [sedangMencari, setSedangMencari] = useState(false)
+  const [formNonKuatpers, setFormNonKuatpers] = useState(null)
+
+  useEffect(() => {
+    let dibatalkan = false
+    setSedangMencari(true)
+    const timer = setTimeout(() => {
+      cariPersonelDb(pencarianPersonel, filterSatuanFungsi)
+        .then((hasil) => {
+          if (!dibatalkan) setHasilPencarian(hasil)
+        })
+        .catch(() => {
+          if (!dibatalkan) setHasilPencarian([])
+        })
+        .finally(() => {
+          if (!dibatalkan) setSedangMencari(false)
+        })
+    }, 300)
+    return () => {
+      dibatalkan = true
+      clearTimeout(timer)
+    }
+  }, [pencarianPersonel, filterSatuanFungsi])
+
   const totalPersonel = kelompok.reduce((acc, k) => acc + k.personel.length, 0)
   const kelompokAktif = kelompok[kelompokAktifIdx]
-  const hasilPencarian = useMemo(
-    () => cariPersonelContoh(pencarianPersonel, filterSatuanFungsi),
-    [pencarianPersonel, filterSatuanFungsi],
-  )
+  // BR-05: jalur non-KUATPERS cuma ditawarkan kalau pencarian NRP/nama tidak
+  // menemukan hasil sama sekali -- bukan pilihan default.
+  const bisaTambahNonKuatpers =
+    !sedangMencari && !filterSatuanFungsi && pencarianPersonel.trim().length >= 2 && hasilPencarian.length === 0
 
   function tambahKelompok(sifat) {
     const nama = sifat === 'pengendali' ? 'KELOMPOK BARU' : `TIM ${kelompok.length + 1}`
@@ -89,19 +134,26 @@ export default function BuatSprin() {
     return `${idxKelompok}:${nrp}`
   }
 
+  function sudahAdaDiKelompok(k, personel) {
+    return personel.nrp
+      ? k.personel.some((p) => p.nrp === personel.nrp)
+      : k.personel.some((p) => p.tempId === personel.tempId)
+  }
+
   async function tambahPersonelKeKelompokAktif(personel) {
     const kelompokTujuan = kelompokAktif
     const idxTujuan = kelompokAktifIdx
     setKelompok((prev) =>
       prev.map((k, i) =>
-        i === kelompokAktifIdx && !k.personel.some((p) => p.nrp === personel.nrp)
+        i === kelompokAktifIdx && !sudahAdaDiKelompok(k, personel)
           ? { ...k, personel: [...k.personel, { ...personel, jabatanOperasional: k.nama }] }
           : k,
       ),
     )
     setPencarianPersonel('')
+    setFormNonKuatpers(null)
     setTampilkanKonfirmasiBentrok(false)
-    if (!kelompokTujuan) return
+    if (!kelompokTujuan || !personel.nrp) return // BR-07 cuma dicek untuk personel KUATPERS berakun
 
     try {
       const riwayat = await ambilRiwayatPenugasanNrp(personel.nrp)
@@ -122,6 +174,22 @@ export default function BuatSprin() {
     }
   }
 
+  // BR-05/BR-13: jalur manual untuk personel di luar KUATPERS -- wajib isi
+  // keterangan pemakaian jalur ini (BKO/Mutasi/Pensiun/Lainnya).
+  function submitFormNonKuatpers(e) {
+    e.preventDefault()
+    if (!formNonKuatpers?.nama?.trim() || !formNonKuatpers?.keterangan) return
+    tambahPersonelKeKelompokAktif({
+      nama: formNonKuatpers.nama.trim(),
+      pangkat: formNonKuatpers.pangkat.trim() || null,
+      nrp: formNonKuatpers.nrp.trim() || null,
+      jabatanStruktur: formNonKuatpers.jabatanAsal.trim() || null,
+      nonKuatpers: true,
+      keterangan: formNonKuatpers.keterangan,
+      tempId: crypto.randomUUID(),
+    })
+  }
+
   const konflikMenonjolAktif = useMemo(() => {
     const hasil = []
     kelompok.forEach((k, ki) => {
@@ -136,8 +204,8 @@ export default function BuatSprin() {
 
   const butirUntuk = useMemo(() => {
     if (!preset) return null
-    return bangunButirUntuk(preset, { tanggalMulai, jamApel, apelDipimpinOleh })
-  }, [preset, tanggalMulai, jamApel, apelDipimpinOleh])
+    return bangunButirUntuk(preset, { perihal, tanggalMulai, jamApel, apelDipimpinOleh })
+  }, [preset, perihal, tanggalMulai, jamApel, apelDipimpinOleh])
 
   const nomorLengkap = nomorAgenda && preset
     ? `SPRIN/${nomorAgenda}/${romawiBulan(tanggalMulai)}/${preset.kodeKlasifikasi}/${new Date(tanggalMulai).getFullYear()}`
@@ -571,11 +639,18 @@ export default function BuatSprin() {
                     const konflik = bentrokPerNrp[kunciBentrok(kelompokAktifIdx, p.nrp)] ?? []
                     const menonjol = konflik.some((k) => k.menonjol)
                     return (
-                      <li key={p.nrp} className="rounded px-2 py-1" style={{ backgroundColor: '#FFFFFF', border: '1px solid #DDE3EA' }}>
+                      <li key={p.nrp ?? p.tempId} className="rounded px-2 py-1" style={{ backgroundColor: '#FFFFFF', border: '1px solid #DDE3EA' }}>
                         <div className="flex items-center justify-between gap-2">
-                          <span className="truncate">{p.pangkat} {p.nama}</span>
+                          <span className="truncate">
+                            {p.pangkat} {p.nama}
+                            {p.nonKuatpers && (
+                              <span className="ml-1.5 rounded px-1.5 py-0.5" style={{ backgroundColor: '#FDF6E3', color: '#8A6100' }}>
+                                Non-KUATPERS
+                              </span>
+                            )}
+                          </span>
                           <span style={{ color: '#67788C', fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Consolas, monospace' }}>
-                            {p.nrp}
+                            {p.nrp ?? '—'}
                           </span>
                         </div>
                         {konflik.length > 0 && (
@@ -613,10 +688,12 @@ export default function BuatSprin() {
             onChange={(e) => setPencarianPersonel(e.target.value)}
           />
           <div className="mt-2 text-xs" style={{ color: '#67788C' }}>
-            {filterSatuanFungsi
-              ? `Menampilkan bagian ${filterSatuanFungsi}. Ketik nama/NRP untuk mempersempit.`
-              : 'Ketik minimal dua huruf, atau pilih bagian di atas untuk menjelajah.'}{' '}
-            Sumber: {PERSONEL_CONTOH.length.toLocaleString('id-ID')} personel KUATPERS.
+            {sedangMencari
+              ? 'Mencari…'
+              : filterSatuanFungsi
+                ? `Menampilkan bagian ${filterSatuanFungsi}. Ketik nama/NRP untuk mempersempit.`
+                : 'Ketik minimal dua huruf, atau pilih bagian di atas untuk menjelajah.'}{' '}
+            Sumber: roster KUATPERS aktif.
           </div>
           <div className="mt-2 max-h-44 space-y-1 overflow-y-auto text-xs">
             {hasilPencarian.map((p) => (
@@ -637,6 +714,94 @@ export default function BuatSprin() {
               </button>
             ))}
           </div>
+
+          {bisaTambahNonKuatpers && !formNonKuatpers && (
+            <button
+              type="button"
+              onClick={() =>
+                setFormNonKuatpers({ nama: pencarianPersonel, pangkat: '', nrp: '', jabatanAsal: '', keterangan: '' })
+              }
+              className="mt-2 w-full rounded px-3 py-2 text-left text-xs font-semibold"
+              style={{ border: '1px dashed #DDE3EA', color: '#67788C' }}
+            >
+              Tidak ketemu di KUATPERS? Tambahkan sebagai personel di luar KUATPERS (BKO/mutasi/pensiun/lainnya)
+            </button>
+          )}
+
+          {formNonKuatpers && (
+            <form onSubmit={submitFormNonKuatpers} className="mt-2 space-y-2 rounded p-3" style={{ backgroundColor: '#F4F6F8' }}>
+              <div className="text-xs font-semibold uppercase" style={{ color: '#67788C' }}>
+                Personel di luar KUATPERS
+              </div>
+              <Field label="Nama" required>
+                <input
+                  className="w-full rounded px-3 py-2 text-sm outline-none focus:ring-2"
+                  style={inputStyle}
+                  value={formNonKuatpers.nama}
+                  onChange={(e) => setFormNonKuatpers((f) => ({ ...f, nama: e.target.value }))}
+                />
+              </Field>
+              <div className="grid grid-cols-2 gap-2">
+                <Field label="Pangkat">
+                  <input
+                    className="w-full rounded px-3 py-2 text-sm outline-none focus:ring-2"
+                    style={inputStyle}
+                    value={formNonKuatpers.pangkat}
+                    onChange={(e) => setFormNonKuatpers((f) => ({ ...f, pangkat: e.target.value }))}
+                  />
+                </Field>
+                <Field label="NRP (kalau ada)">
+                  <input
+                    className="w-full rounded px-3 py-2 text-sm outline-none focus:ring-2"
+                    style={inputStyle}
+                    value={formNonKuatpers.nrp}
+                    onChange={(e) => setFormNonKuatpers((f) => ({ ...f, nrp: e.target.value }))}
+                  />
+                </Field>
+              </div>
+              <Field label="Jabatan asal">
+                <input
+                  className="w-full rounded px-3 py-2 text-sm outline-none focus:ring-2"
+                  style={inputStyle}
+                  value={formNonKuatpers.jabatanAsal}
+                  onChange={(e) => setFormNonKuatpers((f) => ({ ...f, jabatanAsal: e.target.value }))}
+                />
+              </Field>
+              <Field label="Keterangan" required>
+                <select
+                  className="w-full rounded px-3 py-2 text-sm outline-none focus:ring-2"
+                  style={inputStyle}
+                  value={formNonKuatpers.keterangan}
+                  onChange={(e) => setFormNonKuatpers((f) => ({ ...f, keterangan: e.target.value }))}
+                >
+                  <option value="">Pilih keterangan</option>
+                  {KETERANGAN_NON_KUATPERS.map((k) => (
+                    <option key={k.value} value={k.value}>
+                      {k.label}
+                    </option>
+                  ))}
+                </select>
+              </Field>
+              <div className="flex gap-2">
+                <button
+                  type="submit"
+                  disabled={!formNonKuatpers.nama.trim() || !formNonKuatpers.keterangan}
+                  className="rounded px-3 py-1.5 text-xs font-semibold disabled:opacity-40"
+                  style={{ backgroundColor: '#0E1B2C', color: '#FFFFFF' }}
+                >
+                  Tambahkan
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setFormNonKuatpers(null)}
+                  className="rounded px-3 py-1.5 text-xs font-semibold"
+                  style={{ border: '1px solid #DDE3EA', color: '#67788C' }}
+                >
+                  Batal
+                </button>
+              </div>
+            </form>
+          )}
         </div>
       </div>
     </main>

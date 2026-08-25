@@ -87,6 +87,20 @@ const SELECT_SPRIN_LENGKAP = `
   )
 `
 
+// BR-01: nomor agenda diusulkan dari nomor tertinggi tercatat + 1 -- field
+// tetap bisa disunting manual di form supaya bisa disinkronkan ke buku agenda
+// fisik kalau berbeda.
+export async function ambilUsulanNomorAgenda() {
+  const { data, error } = await supabase
+    .from('surat_perintah')
+    .select('nomor_agenda')
+    .order('nomor_agenda', { ascending: false })
+    .limit(1)
+    .maybeSingle()
+  if (error) throw error
+  return (data?.nomor_agenda ?? 0) + 1
+}
+
 export async function ambilDaftarSprin() {
   const { data, error } = await supabase
     .from('surat_perintah')
@@ -219,21 +233,49 @@ export async function ajukanSprinDb(data) {
     .select('id')
   if (skErr) throw skErr
 
-  const semuaNrp = [...new Set(data.kelompok.flatMap((k) => k.personel.map((p) => p.nrp)))]
-  const { data: penggunaCocok, error: pgErr } = await supabase.from('pengguna').select('id, nrp').in('nrp', semuaNrp)
+  const semuaNrp = [...new Set(data.kelompok.flatMap((k) => k.personel.filter((p) => !p.nonKuatpers).map((p) => p.nrp)))]
+  const { data: penggunaCocok, error: pgErr } = await supabase
+    .from('pengguna')
+    .select('id, nrp')
+    .in('nrp', semuaNrp.length > 0 ? semuaNrp : [''])
   if (pgErr) throw pgErr
   const petaNrpKeId = new Map((penggunaCocok ?? []).map((pg) => [pg.nrp, pg.id]))
+
+  // BR-05/BR-13: personel yang tidak ketemu di KUATPERS masuk lewat jalur
+  // manual -- baris personel_non_kuatpers-nya dibuat dulu di sini supaya
+  // sprin_personel bisa mengacu ke id yang benar.
+  const semuaNonKuatpers = data.kelompok.flatMap((k) => k.personel.filter((p) => p.nonKuatpers))
+  const petaTempIdKeId = new Map()
+  if (semuaNonKuatpers.length > 0) {
+    const { data: nkBaru, error: nkErr } = await supabase
+      .from('personel_non_kuatpers')
+      .insert(
+        semuaNonKuatpers.map((p) => ({
+          nama: p.nama,
+          nrp: p.nrp || null,
+          pangkat: p.pangkat || null,
+          jabatan_asal: p.jabatanStruktur || null,
+          keterangan: p.keterangan,
+          diinput_oleh: pgId,
+        })),
+      )
+      .select('id')
+    if (nkErr) throw nkErr
+    semuaNonKuatpers.forEach((p, i) => petaTempIdKeId.set(p.tempId, nkBaru[i].id))
+  }
 
   let nomorKeseluruhan = 0
   const barisPersonel = []
   data.kelompok.forEach((k, ki) => {
     k.personel.forEach((p, pi) => {
-      const penggunaId = petaNrpKeId.get(p.nrp)
-      if (!penggunaId) return // NRP tidak cocok dengan roster pengguna -- lewati
+      const penggunaId = p.nonKuatpers ? null : petaNrpKeId.get(p.nrp)
+      const nonKuatpersId = p.nonKuatpers ? petaTempIdKeId.get(p.tempId) : null
+      if (!penggunaId && !nonKuatpersId) return // NRP tidak cocok dengan roster pengguna -- lewati
       nomorKeseluruhan += 1
       barisPersonel.push({
         sprin_kelompok_id: kelompokBaru[ki].id,
         pengguna_id: penggunaId,
+        personel_non_kuatpers_id: nonKuatpersId,
         nomor_urut_keseluruhan: nomorKeseluruhan,
         nomor_urut_kelompok: pi + 1,
         jabatan_operasional: p.jabatanOperasional ?? null,

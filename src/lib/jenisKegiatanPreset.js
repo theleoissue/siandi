@@ -37,7 +37,7 @@ export const PRESET_UNJUK_RASA = {
       'Informasi Khusus Sat Intelkam Polres Cimahi Nomor R/Infosus/<no>/<bln>/<thn>/Intelkam tanggal <tgl> tentang <perihal>',
   },
   untukBaku: [
-    'melaksanakan kegiatan;',
+    // butir pertama dibangun dinamis dari perihal (BR-04), lihat bangunButirUntuk -- bukan teks tetap.
     'seluruh personel DILARANG MEMBAWA / MENGGUNAKAN SENJATA API dalam pelaksanaan tugas pengamanan;',
     'personel menggunakan pakaian PDL-II Two Tone / menyesuaikan;',
     'melaksanakan Koordinasi dan Komunikasi dengan pihak terkait;',
@@ -53,10 +53,17 @@ function formatTanggalUntukButir(isoDate) {
   return `${namaHari(isoDate)} tanggal ${tanggalPanjang(isoDate)}`
 }
 
-export function bangunButirUntuk(preset, { tanggalMulai, jamApel, apelDipimpinOleh }) {
+// BR-04: butir pertama & kedua selalu disusun dinamis dari field terstruktur
+// (perihal, tanggal, jam apel, pemimpin apel) -- tidak pernah diketik bebas.
+function butirMelaksanakan(perihal) {
+  const teks = (perihal || 'kegiatan').trim()
+  return `melaksanakan ${teks.charAt(0).toLowerCase()}${teks.slice(1)};`
+}
+
+export function bangunButirUntuk(preset, { perihal, tanggalMulai, jamApel, apelDipimpinOleh }) {
   const tanggalText = formatTanggalUntukButir(tanggalMulai)
   const butirApel = tanggalText
     ? `apel pengamanan dilaksanakan pada hari ${tanggalText} pukul ${jamApel} WIB dipimpin oleh ${apelDipimpinOleh || '...'};`
     : `apel pengamanan dilaksanakan pada tanggal yang ditentukan pukul ${jamApel} WIB dipimpin oleh ${apelDipimpinOleh || '...'};`
-  return [preset.untukBaku[0], butirApel, ...preset.untukBaku.slice(1)]
+  return [butirMelaksanakan(perihal), butirApel, ...preset.untukBaku]
 }
