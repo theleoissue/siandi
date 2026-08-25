@@ -62,7 +62,7 @@ function AppRoutes() {
       <Routes>
         <Route
           element={
-            <Layout user={user} jumlahPersonel={PERSONEL_CONTOH.length} jumlahSprin={9} onKeluar={keluar} />
+            <Layout user={user} jumlahPersonel={PERSONEL_CONTOH.length} onKeluar={keluar} />
           }
         >
           <Route
@@ -72,7 +72,7 @@ function AppRoutes() {
           <Route path="/buat-sprin" element={<BuatSprin />} />
           <Route path="/daftar-sprin" element={<DaftarSprin />} />
           <Route path="/persetujuan" element={<Persetujuan />} />
-          <Route path="/sprin/:id" element={<SprinDetail peranSaya={user.peran_sistem} namaSaya={user.nama} />} />
+          <Route path="/sprin/:id" element={<SprinDetail peranSaya={user.peran_sistem} />} />
           <Route path="/arsip" element={<Arsip />} />
           <Route path="/riwayat" element={<RiwayatPenugasan />} />
           <Route path="/notifikasi" element={<Notifikasi nrpSaya={user.nrp} />} />

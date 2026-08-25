@@ -27,7 +27,7 @@ export default function Arsip() {
         const cocokDasar =
           s.nomorLengkap.toLowerCase().includes(kunci) || s.perihal.toLowerCase().includes(kunci)
         const cocokPersonel = (s.kelompok ?? []).some((k) =>
-          k.personel.some((p) => p.nama.toLowerCase().includes(kunci) || p.nrp.includes(kunci)),
+          k.personel.some((p) => p.nama.toLowerCase().includes(kunci) || (p.nrp ?? '').includes(kunci)),
         )
         if (!cocokDasar && !cocokPersonel) return false
       }

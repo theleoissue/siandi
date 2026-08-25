@@ -106,8 +106,7 @@ export default function RiwayatPenugasan() {
             className="rounded-lg p-8 text-center text-sm"
             style={{ backgroundColor: '#FFFFFF', border: '1px solid #DDE3EA', color: '#67788C' }}
           >
-            Belum ada riwayat penugasan untuk personel ini pada Sprin yang sudah dibuat di sesi ini. 9 Sprin arsip
-            belum punya rincian personel per baris — menyusul di tahap sambungkan data asli.
+            Belum ada riwayat penugasan yang tercatat untuk personel ini.
           </div>
         ) : (
           <div className="space-y-2">

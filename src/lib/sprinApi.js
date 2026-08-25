@@ -1,0 +1,238 @@
+import { supabase } from './supabase'
+import { labelWaktu } from './format'
+
+// Lapisan data asli untuk SprinStore -- menggantikan data contoh in-memory.
+// Field pada objek yang dikembalikan sengaja dipertahankan sama persis dengan
+// bentuk lama (camelCase, label bahasa Indonesia) supaya halaman-halaman yang
+// sudah ada (DaftarSprin, Arsip, SprinDetail, dst.) tidak perlu diubah.
+
+const LABEL_STATUS = {
+  DRAF: 'Draf',
+  MENUNGGU_PERSETUJUAN: 'Menunggu Persetujuan',
+  DISETUJUI: 'Terbit', // BR-16: tidak pernah benar-benar tersimpan, langsung jadi TERBIT
+  TERBIT: 'Terbit',
+  DIKEMBALIKAN: 'Dikembalikan',
+}
+
+function petaPersonel(sp) {
+  const sumber = sp.pengguna ?? sp.personel_non_kuatpers
+  return {
+    nama: sumber?.nama ?? '(tidak diketahui)',
+    pangkat: sumber?.pangkat ?? null,
+    nrp: sumber?.nrp ?? null,
+    jabatanStruktur: sumber?.jabatan_struktur ?? sumber?.jabatan_asal ?? null,
+    jabatanOperasional: sp.jabatan_operasional,
+  }
+}
+
+function petaSprin(row) {
+  const kelompok = (row.sprin_kelompok ?? [])
+    .slice()
+    .sort((a, b) => a.urutan - b.urutan)
+    .map((k) => ({
+      nama: k.nama_kelompok,
+      kelompokBesar: k.kelompok_besar,
+      sifat: k.sifat === 'PENGENDALI' ? 'pengendali' : 'pelaksana',
+      personel: (k.sprin_personel ?? [])
+        .slice()
+        .sort((a, b) => a.nomor_urut_kelompok - b.nomor_urut_kelompok)
+        .map(petaPersonel),
+    }))
+  const jumlahPersonel = kelompok.reduce((acc, k) => acc + k.personel.length, 0)
+
+  return {
+    id: row.id,
+    nomorLengkap: row.nomor_lengkap,
+    perihal: row.perihal,
+    pertimbangan: row.pertimbangan,
+    lokasi: row.lokasi,
+    jenisKegiatanNama: row.jenis_kegiatan?.nama,
+    kodeKlasifikasi: row.jenis_kegiatan?.kode_klasifikasi,
+    tanggalMulai: row.tanggal_mulai,
+    tanggalSelesai: row.tanggal_selesai,
+    jamApel: row.jam_apel ? row.jam_apel.slice(0, 5) : null,
+    waktuLabel: labelWaktu({ tanggalMulai: row.tanggal_mulai, tanggalSelesai: row.tanggal_selesai, jamApel: row.jam_apel?.slice(0, 5) }),
+    status: LABEL_STATUS[row.status] ?? row.status,
+    catatanPemeriksaan: row.catatan_pemeriksaan,
+    jumlahPersonel,
+    jumlahKelompok: kelompok.length,
+    kelompok,
+    // Sprin arsip historis tidak punya pertimbangan/dasar/untuk tersimpan (belum
+    // diambil dari sumber saat migrasi) -- detailLengkap jadi penanda untuk itu.
+    // "dasar" dan "untuk" sengaja tidak diisi di sini karena belum ada kolom/tabel
+    // untuk menyimpannya (lihat catatan BR-03 di jenisKegiatanPreset.js).
+    detailLengkap: Boolean(row.pertimbangan),
+  }
+}
+
+const SELECT_SPRIN_LENGKAP = `
+  id, nomor_lengkap, perihal, pertimbangan, lokasi, tanggal_mulai, tanggal_selesai,
+  jam_apel, status, catatan_pemeriksaan,
+  jenis_kegiatan:jenis_kegiatan_id ( nama, kode_klasifikasi ),
+  sprin_kelompok (
+    id, nama_kelompok, kelompok_besar, sifat, urutan,
+    sprin_personel (
+      id, nomor_urut_kelompok, jabatan_operasional,
+      pengguna ( nama, pangkat, nrp, jabatan_struktur ),
+      personel_non_kuatpers ( nama, pangkat, nrp, jabatan_asal )
+    )
+  )
+`
+
+export async function ambilDaftarSprin() {
+  const { data, error } = await supabase
+    .from('surat_perintah')
+    .select(SELECT_SPRIN_LENGKAP)
+    .order('tanggal_mulai', { ascending: false })
+  if (error) throw error
+  return (data ?? []).map(petaSprin)
+}
+
+export async function ambilLogAktivitas() {
+  const { data, error } = await supabase
+    .from('log_aktivitas')
+    .select('id, aksi, created_at, surat_perintah(nomor_lengkap), pengguna(nama, pangkat)')
+    .order('created_at', { ascending: false })
+  if (error) throw error
+  return (data ?? []).map(petaLog)
+}
+
+function formatWaktuLog(iso) {
+  const d = new Date(iso)
+  const bulan = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des']
+  const pad = (n) => String(n).padStart(2, '0')
+  return `${pad(d.getDate())} ${bulan[d.getMonth()]} ${d.getFullYear()} ${pad(d.getHours())}:${pad(d.getMinutes())}`
+}
+
+function petaLog(row) {
+  const nomor = row.surat_perintah?.nomor_lengkap ?? ''
+  const teks = { TERBIT_OTOMATIS: `Menerbitkan ${nomor}`, DIKEMBALIKAN: `Mengembalikan ${nomor}` }
+  const warna = { TERBIT_OTOMATIS: '#1F7A4D', DIKEMBALIKAN: '#B3261E' }
+  return {
+    id: row.id,
+    aksi: (teks[row.aksi] ?? row.aksi).trim(),
+    pelaku: row.pengguna ? [row.pengguna.pangkat, row.pengguna.nama].filter(Boolean).join(' ') : 'Sistem',
+    waktuLabel: formatWaktuLog(row.created_at),
+    warna: warna[row.aksi] ?? '#67788C',
+  }
+}
+
+export async function ambilNotifikasi() {
+  const { data, error } = await supabase
+    .from('notifikasi')
+    .select('id, dibaca, dikirim_pada, surat_perintah_id, surat_perintah(nomor_lengkap, perihal)')
+    .order('dikirim_pada', { ascending: false })
+  if (error) throw error
+  return (data ?? []).map((row) => ({
+    id: row.id,
+    sprinId: row.surat_perintah_id,
+    dibaca: row.dibaca,
+    perihal: row.surat_perintah?.perihal,
+    nomorLengkap: row.surat_perintah?.nomor_lengkap,
+  }))
+}
+
+export async function tandaiNotifikasiDibacaDb(id) {
+  const { error } = await supabase.from('notifikasi').update({ dibaca: true }).eq('id', id)
+  if (error) throw error
+}
+
+export async function pengunaIdSaya() {
+  const { data, error } = await supabase.rpc('pengguna_id_saya')
+  if (error) throw error
+  return data
+}
+
+export async function ajukanSprinDb(data) {
+  const pgId = await pengunaIdSaya()
+
+  const { data: jk, error: jkErr } = await supabase
+    .from('jenis_kegiatan')
+    .select('id')
+    .eq('nama', data.jenisKegiatanNama)
+    .single()
+  if (jkErr) throw jkErr
+
+  const { data: sp, error: spErr } = await supabase
+    .from('surat_perintah')
+    .insert({
+      nomor_agenda: Number(data.nomorAgenda),
+      jenis_kegiatan_id: jk.id,
+      perihal: data.perihal,
+      pertimbangan: data.pertimbangan,
+      lokasi: data.lokasi,
+      tanggal_mulai: data.tanggalMulai,
+      tanggal_selesai: data.tanggalSelesai,
+      jam_apel: data.jamApel || null,
+      status: 'MENUNGGU_PERSETUJUAN',
+      disusun_oleh: pgId,
+    })
+    .select('id')
+    .single()
+  if (spErr) throw spErr
+
+  const { data: kelompokBaru, error: skErr } = await supabase
+    .from('sprin_kelompok')
+    .insert(
+      data.kelompok.map((k, i) => ({
+        surat_perintah_id: sp.id,
+        nama_kelompok: k.nama,
+        kelompok_besar: k.kelompokBesar || null,
+        sifat: k.sifat === 'pengendali' ? 'PENGENDALI' : 'PELAKSANA',
+        urutan: i,
+      })),
+    )
+    .select('id')
+  if (skErr) throw skErr
+
+  const semuaNrp = [...new Set(data.kelompok.flatMap((k) => k.personel.map((p) => p.nrp)))]
+  const { data: penggunaCocok, error: pgErr } = await supabase.from('pengguna').select('id, nrp').in('nrp', semuaNrp)
+  if (pgErr) throw pgErr
+  const petaNrpKeId = new Map((penggunaCocok ?? []).map((pg) => [pg.nrp, pg.id]))
+
+  let nomorKeseluruhan = 0
+  const barisPersonel = []
+  data.kelompok.forEach((k, ki) => {
+    k.personel.forEach((p, pi) => {
+      const penggunaId = petaNrpKeId.get(p.nrp)
+      if (!penggunaId) return // NRP tidak cocok dengan roster pengguna -- lewati
+      nomorKeseluruhan += 1
+      barisPersonel.push({
+        sprin_kelompok_id: kelompokBaru[ki].id,
+        pengguna_id: penggunaId,
+        nomor_urut_keseluruhan: nomorKeseluruhan,
+        nomor_urut_kelompok: pi + 1,
+        jabatan_operasional: p.jabatanOperasional ?? null,
+      })
+    })
+  })
+  if (barisPersonel.length > 0) {
+    const { error: spersErr } = await supabase.from('sprin_personel').insert(barisPersonel)
+    if (spersErr) throw spersErr
+  }
+
+  return sp.id
+}
+
+export async function setujuiSprinDb(id, catatanPemeriksaan) {
+  const { error } = await supabase
+    .from('surat_perintah')
+    .update({ status: 'DISETUJUI', catatan_pemeriksaan: catatanPemeriksaan || null })
+    .eq('id', id)
+  if (error) throw error
+  // Trigger DB (BR-16, BR-14) otomatis: naikkan ke TERBIT, isi disetujui_oleh/pada,
+  // kirim notifikasi ke seluruh personel berakun, catat log_aktivitas -- tidak perlu diulang di sini.
+}
+
+export async function kembalikanSprinDb(id, catatanPemeriksaan) {
+  const { error } = await supabase
+    .from('surat_perintah')
+    .update({ status: 'DIKEMBALIKAN', catatan_pemeriksaan: catatanPemeriksaan })
+    .eq('id', id)
+  if (error) throw error
+  const pgId = await pengunaIdSaya()
+  const { error: logErr } = await supabase
+    .from('log_aktivitas')
+    .insert({ pengguna_id: pgId, surat_perintah_id: id, aksi: 'DIKEMBALIKAN' })
+  if (logErr) throw logErr
+}

@@ -23,12 +23,14 @@ function IconX(props) {
   )
 }
 
-export default function SprinDetail({ peranSaya, namaSaya }) {
+export default function SprinDetail({ peranSaya }) {
   const { id } = useParams()
   const navigate = useNavigate()
   const { cariSprin, setujuiSprin, kembalikanSprin } = useSprinStore()
   const [tab, setTab] = useState('isi')
   const [catatan, setCatatan] = useState('')
+  const [memproses, setMemproses] = useState(false)
+  const [pesanError, setPesanError] = useState('')
 
   const sprin = cariSprin(id)
   if (!sprin) {
@@ -43,13 +45,29 @@ export default function SprinDetail({ peranSaya, namaSaya }) {
 
   const bisaMemutuskan = peranSaya === 'KABAG_OPS' && sprin.status === 'Menunggu Persetujuan'
 
-  function handleSetujui() {
-    setujuiSprin(sprin.id, catatan, namaSaya)
+  async function handleSetujui() {
+    setMemproses(true)
+    setPesanError('')
+    try {
+      await setujuiSprin(sprin.id, catatan)
+    } catch (err) {
+      setPesanError(err.message ?? 'Gagal menyetujui Sprin.')
+    } finally {
+      setMemproses(false)
+    }
   }
 
-  function handleKembalikan() {
+  async function handleKembalikan() {
     if (!catatan.trim()) return
-    kembalikanSprin(sprin.id, catatan, namaSaya)
+    setMemproses(true)
+    setPesanError('')
+    try {
+      await kembalikanSprin(sprin.id, catatan)
+    } catch (err) {
+      setPesanError(err.message ?? 'Gagal mengembalikan Sprin.')
+    } finally {
+      setMemproses(false)
+    }
   }
 
   return (
@@ -206,6 +224,7 @@ export default function SprinDetail({ peranSaya, namaSaya }) {
                 <button
                   type="button"
                   onClick={handleSetujui}
+                  disabled={memproses}
                   className="inline-flex items-center gap-2 rounded px-4 py-2 text-sm font-semibold transition hover:opacity-90 disabled:opacity-40"
                   style={{ backgroundColor: '#C8A24A', color: '#0E1B2C', border: '1px solid #C8A24A' }}
                 >
@@ -214,7 +233,7 @@ export default function SprinDetail({ peranSaya, namaSaya }) {
                 <button
                   type="button"
                   onClick={handleKembalikan}
-                  disabled={!catatan.trim()}
+                  disabled={!catatan.trim() || memproses}
                   title={!catatan.trim() ? 'Catatan pemeriksaan wajib diisi saat mengembalikan (BR-11)' : undefined}
                   className="inline-flex items-center gap-2 rounded px-4 py-2 text-sm font-semibold transition hover:opacity-90 disabled:opacity-40"
                   style={{ backgroundColor: '#B3261E', color: '#FFFFFF', border: '1px solid #B3261E' }}
@@ -222,6 +241,11 @@ export default function SprinDetail({ peranSaya, namaSaya }) {
                   <IconX size={15} /> Kembalikan
                 </button>
               </div>
+              {pesanError && (
+                <p className="mt-2 text-xs font-semibold" style={{ color: '#B3261E' }}>
+                  {pesanError}
+                </p>
+              )}
             </div>
           </div>
         )}

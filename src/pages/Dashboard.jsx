@@ -23,10 +23,11 @@ export default function Dashboard() {
   const statCards = useMemo(() => {
     const terbit = daftar.filter((s) => s.status === 'Terbit').length
     const menunggu = daftar.filter((s) => s.status === 'Menunggu Persetujuan').length
+    const barisPenugasan = daftar.reduce((acc, s) => acc + s.jumlahPersonel, 0)
     return [
       { label: 'Sprin terbit', value: String(terbit), color: '#1F7A4D' },
       { label: 'Menunggu persetujuan', value: String(menunggu), color: '#8A6100' },
-      { label: 'Baris penugasan', value: '1.525', color: '#0E1B2C' },
+      { label: 'Baris penugasan', value: barisPenugasan.toLocaleString('id-ID'), color: '#0E1B2C' },
       { label: 'Personel terdata', value: PERSONEL_CONTOH.length.toLocaleString('id-ID'), color: '#0E1B2C' },
     ]
   }, [daftar])

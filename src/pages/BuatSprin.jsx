@@ -4,7 +4,7 @@ import { IconInfo, IconCheck, IconPlus, IconFolderPlus } from '../components/ico
 import { JENIS_KEGIATAN_OPTIONS, PRESET_UNJUK_RASA, bangunButirUntuk } from '../lib/jenisKegiatanPreset'
 import { cariPersonelContoh, PERSONEL_CONTOH } from '../lib/personelContoh'
 import { useSprinStore } from '../lib/sprinContext'
-import { romawiBulan, tanggalDenganHari, labelWaktu } from '../lib/format'
+import { romawiBulan } from '../lib/format'
 
 const inputStyle = {
   border: '1px solid #DDE3EA',
@@ -28,6 +28,8 @@ function Field({ label, required, children }) {
 export default function BuatSprin() {
   const navigate = useNavigate()
   const { ajukanSprin } = useSprinStore()
+  const [menyimpan, setMenyimpan] = useState(false)
+  const [pesanError, setPesanError] = useState('')
 
   const [nomorAgenda, setNomorAgenda] = useState('')
   const [jenisKegiatan, setJenisKegiatan] = useState('PENGAMANAN UNJUK RASA')
@@ -93,28 +95,28 @@ export default function BuatSprin() {
 
   const siapDisimpan = Boolean(nomorAgenda && perihal && pertimbangan && lokasi && totalPersonel > 0 && preset)
 
-  function handleAjukan() {
-    if (!siapDisimpan) return
-    const id = ajukanSprin({
-      nomorLengkap,
-      perihal,
-      pertimbangan,
-      jenisKegiatanNama: preset.nama,
-      kodeKlasifikasi: preset.kodeKlasifikasi,
-      waktuLabel: labelWaktu({ tanggalMulai, tanggalSelesai, jamApel }),
-      waktuPanjang: tanggalDenganHari(tanggalMulai),
-      tanggalMulai,
-      tanggalSelesai,
-      jamApel,
-      apelLabel: `${jamApel} WIB, dipimpin ${apelDipimpinOleh}`,
-      penandatangan: 'KAPOLRES',
-      jumlahPersonel: totalPersonel,
-      jumlahKelompok: kelompok.length,
-      dasar: preset.dasarHukumBaku,
-      untuk: butirUntuk,
-      kelompok,
-    })
-    navigate(`/sprin/${id}`)
+  async function handleAjukan() {
+    if (!siapDisimpan || menyimpan) return
+    setMenyimpan(true)
+    setPesanError('')
+    try {
+      const id = await ajukanSprin({
+        nomorAgenda,
+        perihal,
+        pertimbangan,
+        jenisKegiatanNama: preset.nama,
+        kodeKlasifikasi: preset.kodeKlasifikasi,
+        tanggalMulai,
+        tanggalSelesai,
+        jamApel,
+        lokasi,
+        kelompok,
+      })
+      navigate(`/sprin/${id}`)
+    } catch (err) {
+      setPesanError(err.message ?? 'Gagal menyimpan Sprin.')
+      setMenyimpan(false)
+    }
   }
 
   return (
@@ -338,22 +340,27 @@ export default function BuatSprin() {
           <div className="flex flex-wrap gap-2">
             <button
               type="button"
-              disabled={!siapDisimpan}
+              disabled={!siapDisimpan || menyimpan}
               onClick={handleAjukan}
               className="inline-flex items-center gap-2 rounded px-4 py-2 text-sm font-semibold transition hover:opacity-90 disabled:opacity-40"
               style={{ backgroundColor: '#0E1B2C', color: '#FFFFFF', border: '1px solid #0E1B2C' }}
             >
-              <IconCheck size={15} /> Simpan dan ajukan persetujuan
+              <IconCheck size={15} /> {menyimpan ? 'Menyimpan…' : 'Simpan dan ajukan persetujuan'}
             </button>
             <button
               type="button"
-              disabled={!siapDisimpan}
+              disabled={!siapDisimpan || menyimpan}
               className="inline-flex items-center gap-2 rounded px-4 py-2 text-sm font-semibold transition hover:opacity-90 disabled:opacity-40"
               style={{ backgroundColor: '#FFFFFF', color: '#1A2634', border: '1px solid #DDE3EA' }}
             >
               Simpan sebagai draf
             </button>
           </div>
+          {pesanError && (
+            <p className="text-xs font-semibold" style={{ color: '#B3261E' }}>
+              {pesanError}
+            </p>
+          )}
           <p className="text-xs" style={{ color: '#67788C' }}>
             Lengkapi nomor agenda yang belum terpakai, perihal, pertimbangan, lokasi, dan tempatkan minimal satu
             personel.
