@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { IconInfo, IconCheck, IconPlus, IconFolderPlus } from '../components/icons'
 import { JENIS_KEGIATAN_OPTIONS, PRESET_UNJUK_RASA, bangunButirUntuk } from '../lib/jenisKegiatanPreset'
-import { cariPersonelContoh, PERSONEL_CONTOH } from '../lib/personelContoh'
+import { cariPersonelContoh, PERSONEL_CONTOH, SATUAN_FUNGSI_OPTIONS } from '../lib/personelContoh'
 import { useSprinStore } from '../lib/sprinContext'
 import { romawiBulan } from '../lib/format'
 
@@ -50,10 +50,14 @@ export default function BuatSprin() {
   )
   const [kelompokAktifIdx, setKelompokAktifIdx] = useState(0)
   const [pencarianPersonel, setPencarianPersonel] = useState('')
+  const [filterSatuanFungsi, setFilterSatuanFungsi] = useState('')
 
   const totalPersonel = kelompok.reduce((acc, k) => acc + k.personel.length, 0)
   const kelompokAktif = kelompok[kelompokAktifIdx]
-  const hasilPencarian = useMemo(() => cariPersonelContoh(pencarianPersonel), [pencarianPersonel])
+  const hasilPencarian = useMemo(
+    () => cariPersonelContoh(pencarianPersonel, filterSatuanFungsi),
+    [pencarianPersonel, filterSatuanFungsi],
+  )
 
   function tambahKelompok(sifat) {
     const nama = sifat === 'pengendali' ? 'KELOMPOK BARU' : `TIM ${kelompok.length + 1}`
@@ -479,6 +483,19 @@ export default function BuatSprin() {
             </div>
           )}
 
+          <select
+            className="mb-2 w-full rounded px-3 py-2 text-sm outline-none focus:ring-2"
+            style={inputStyle}
+            value={filterSatuanFungsi}
+            onChange={(e) => setFilterSatuanFungsi(e.target.value)}
+          >
+            <option value="">Semua bagian</option>
+            {SATUAN_FUNGSI_OPTIONS.map((sf) => (
+              <option key={sf} value={sf}>
+                {sf}
+              </option>
+            ))}
+          </select>
           <input
             placeholder={`Cari personel untuk ${kelompokAktif?.nama ?? ''}`}
             className="w-full rounded px-3 py-2 text-sm outline-none focus:ring-2"
@@ -487,7 +504,10 @@ export default function BuatSprin() {
             onChange={(e) => setPencarianPersonel(e.target.value)}
           />
           <div className="mt-2 text-xs" style={{ color: '#67788C' }}>
-            Ketik minimal dua huruf. Sumber: {PERSONEL_CONTOH.length.toLocaleString('id-ID')} personel KUATPERS.
+            {filterSatuanFungsi
+              ? `Menampilkan bagian ${filterSatuanFungsi}. Ketik nama/NRP untuk mempersempit.`
+              : 'Ketik minimal dua huruf, atau pilih bagian di atas untuk menjelajah.'}{' '}
+            Sumber: {PERSONEL_CONTOH.length.toLocaleString('id-ID')} personel KUATPERS.
           </div>
           <div className="mt-2 max-h-44 space-y-1 overflow-y-auto text-xs">
             {hasilPencarian.map((p) => (
