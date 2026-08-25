@@ -86,5 +86,6 @@ export const CONTOH_USER_BY_VIEW_ROLE = {
     nama: '—',
     jabatan: '',
     peran_sistem: 'PERSONEL',
+    nrp: '84121923',
   },
 }

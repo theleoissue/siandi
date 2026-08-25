@@ -13,7 +13,7 @@ import DataPersonel from './pages/DataPersonel'
 import JenisKegiatan from './pages/JenisKegiatan'
 import ManajemenPengguna from './pages/ManajemenPengguna'
 import LogAktivitas from './pages/LogAktivitas'
-import SegeraHadir from './pages/SegeraHadir'
+import PenugasanSaya from './pages/PenugasanSaya'
 import { CONTOH_USER_BY_VIEW_ROLE } from './lib/menu'
 import { SprinStoreProvider } from './lib/SprinStore'
 import { PERSONEL_CONTOH } from './lib/personelContoh'
@@ -41,7 +41,9 @@ export default function App() {
         >
           <Route
             path="/"
-            element={user.peran_sistem === 'PERSONEL' ? <SegeraHadir judul="Penugasan Saya" /> : <Dashboard />}
+            element={
+              user.peran_sistem === 'PERSONEL' ? <PenugasanSaya nrpSaya={user.nrp} /> : <Dashboard />
+            }
           />
           <Route path="/buat-sprin" element={<BuatSprin />} />
           <Route path="/daftar-sprin" element={<DaftarSprin />} />

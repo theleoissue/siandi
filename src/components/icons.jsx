@@ -156,6 +156,15 @@ export function IconUserCog(props) {
   )
 }
 
+export function IconClock(props) {
+  return (
+    <Icon {...props}>
+      <circle cx="12" cy="12" r="10" />
+      <path d="M12 6v6l4 2" />
+    </Icon>
+  )
+}
+
 export function IconInfo(props) {
   return (
     <Icon {...props}>
