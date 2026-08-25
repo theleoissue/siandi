@@ -7,7 +7,21 @@ import { cariPersonelDb } from '../lib/personelApi'
 import { useSprinStore } from '../lib/sprinContext'
 import { romawiBulan } from '../lib/format'
 import { cekBentrok, ambilRiwayatPenugasanNrp } from '../lib/bentrokApi'
-import { ambilUsulanNomorAgenda } from '../lib/sprinApi'
+import { ambilUsulanNomorAgenda, cariPemakaiNomorAgenda } from '../lib/sprinApi'
+
+function hariIniIso() {
+  const d = new Date()
+  const bulan = String(d.getMonth() + 1).padStart(2, '0')
+  const tanggal = String(d.getDate()).padStart(2, '0')
+  return `${d.getFullYear()}-${bulan}-${tanggal}`
+}
+
+// Tahun diambil dari string ISO langsung, bukan new Date(...).getFullYear() --
+// "2026-08-12" diparse sebagai tengah malam UTC, jadi getFullYear() bisa
+// meleset satu tahun di tanggal 1 Januari untuk zona waktu di belakang UTC.
+function tahunDariIso(isoDate) {
+  return isoDate?.slice(0, 4) ?? ''
+}
 
 const KETERANGAN_NON_KUATPERS = [
   { value: 'BKO', label: 'BKO' },
@@ -47,18 +61,53 @@ export default function BuatSprin() {
   const [pertimbangan, setPertimbangan] = useState('')
   const [lokasi, setLokasi] = useState('')
   const [apelDipimpinOleh, setApelDipimpinOleh] = useState('KABAG OPS')
-  const [tanggalMulai, setTanggalMulai] = useState('2026-08-12')
-  const [tanggalSelesai, setTanggalSelesai] = useState('2026-08-12')
+  const [tanggalMulai, setTanggalMulai] = useState(hariIniIso)
+  const [tanggalSelesai, setTanggalSelesai] = useState(hariIniIso)
   const [jamApel, setJamApel] = useState('08:00')
   const [dasarHukumRujukan, setDasarHukumRujukan] = useState('')
+  // BR-01: hasil pemeriksaan nomor agenda ke DB -- null = belum/tidak diperiksa.
+  const [nomorAgendaTerpakai, setNomorAgendaTerpakai] = useState(null)
+  const [memeriksaNomor, setMemeriksaNomor] = useState(false)
+
+  const tahunSprin = tahunDariIso(tanggalMulai)
 
   // BR-01: usulkan nomor agenda tertinggi + 1 saat halaman dibuka -- field tetap
   // bisa disunting manual (lihat onChange di bawah), ini cuma nilai awal.
   useEffect(() => {
-    ambilUsulanNomorAgenda()
+    if (!tahunSprin) return
+    ambilUsulanNomorAgenda(tahunSprin)
       .then((usulan) => setNomorAgenda((sekarang) => (sekarang ? sekarang : String(usulan))))
       .catch(() => {})
-  }, [])
+  }, [tahunSprin])
+
+  const nomorAgendaValid = /^\d+$/.test(nomorAgenda.trim())
+
+  // BR-01: sistem memeriksa nomor yang diketik supaya tidak menabrak nomor yang
+  // sudah dipakai Sprin lain di tahun yang sama.
+  useEffect(() => {
+    if (!nomorAgendaValid || !tahunSprin) {
+      setNomorAgendaTerpakai(null)
+      return
+    }
+    let dibatalkan = false
+    setMemeriksaNomor(true)
+    const timer = setTimeout(() => {
+      cariPemakaiNomorAgenda(Number(nomorAgenda.trim()), tahunSprin)
+        .then((pemakai) => {
+          if (!dibatalkan) setNomorAgendaTerpakai(pemakai)
+        })
+        .catch(() => {
+          if (!dibatalkan) setNomorAgendaTerpakai(null)
+        })
+        .finally(() => {
+          if (!dibatalkan) setMemeriksaNomor(false)
+        })
+    }, 400)
+    return () => {
+      dibatalkan = true
+      clearTimeout(timer)
+    }
+  }, [nomorAgenda, nomorAgendaValid, tahunSprin])
 
   const isPresetTersedia = jenisKegiatan === 'PENGAMANAN UNJUK RASA'
   const preset = isPresetTersedia ? PRESET_UNJUK_RASA : null
@@ -207,26 +256,42 @@ export default function BuatSprin() {
     return bangunButirUntuk(preset, { perihal, tanggalMulai, jamApel, apelDipimpinOleh })
   }, [preset, perihal, tanggalMulai, jamApel, apelDipimpinOleh])
 
-  const nomorLengkap = nomorAgenda && preset
-    ? `SPRIN/${nomorAgenda}/${romawiBulan(tanggalMulai)}/${preset.kodeKlasifikasi}/${new Date(tanggalMulai).getFullYear()}`
+  const nomorLengkap = nomorAgendaValid && preset
+    ? `SPRIN/${nomorAgenda.trim()}/${romawiBulan(tanggalMulai)}/${preset.kodeKlasifikasi}/${tahunSprin}`
     : null
 
-  const siapDisimpan = Boolean(nomorAgenda && perihal && pertimbangan && lokasi && totalPersonel > 0 && preset)
+  const tanggalTerbalik = Boolean(tanggalMulai && tanggalSelesai && tanggalSelesai < tanggalMulai)
+
+  // Draf boleh disimpan tanpa nomor agenda (BR-17) dan tanpa personel -- yang
+  // wajib cuma perihal, supaya draf punya identitas yang bisa dikenali kembali.
+  const siapSimpanDraf = Boolean(perihal.trim() && preset && !tanggalTerbalik && !nomorAgendaTerpakai)
+  const siapDiajukan = Boolean(
+    nomorAgendaValid &&
+      !nomorAgendaTerpakai &&
+      !memeriksaNomor &&
+      perihal.trim() &&
+      pertimbangan.trim() &&
+      lokasi.trim() &&
+      totalPersonel > 0 &&
+      preset &&
+      !tanggalTerbalik,
+  )
 
   function handleKlikSimpan() {
-    if (!siapDisimpan || menyimpan) return
+    if (!siapDiajukan || menyimpan) return
     if (konflikMenonjolAktif.length > 0 && !tampilkanKonfirmasiBentrok) {
       setTampilkanKonfirmasiBentrok(true)
       return
     }
-    prosesAjukan()
+    prosesAjukan('MENUNGGU_PERSETUJUAN')
   }
 
-  async function prosesAjukan() {
+  async function prosesAjukan(status = 'MENUNGGU_PERSETUJUAN') {
     setMenyimpan(true)
     setPesanError('')
     try {
       const id = await ajukanSprin({
+        status,
         nomorAgenda,
         perihal,
         pertimbangan,
@@ -239,6 +304,8 @@ export default function BuatSprin() {
         kelompok,
         butirUntuk,
         dasarHukumBaku: preset.dasarHukumBaku,
+        dasarHukumRujukan,
+        kodeDasarHukumRujukan: preset.dasarHukumRujukanDiperlukan?.kode,
         konflikBentrok: konflikMenonjolAktif.map((k) => ({
           nrp: k.nrp,
           nama: k.nama,
@@ -299,6 +366,23 @@ export default function BuatSprin() {
                 </div>
               </div>
             </div>
+            {nomorAgenda.trim() !== '' && !nomorAgendaValid && (
+              <div className="mt-2 rounded px-3 py-2 text-xs font-semibold" style={{ backgroundColor: '#FDECEA', color: '#B3261E' }}>
+                Nomor agenda harus berupa angka.
+              </div>
+            )}
+            {nomorAgendaTerpakai && (
+              <div className="mt-2 rounded px-3 py-2 text-xs" style={{ backgroundColor: '#FDECEA', color: '#B3261E' }}>
+                <span className="font-semibold">Nomor {nomorAgenda.trim()} sudah dipakai di tahun {tahunSprin}</span> —{' '}
+                {nomorAgendaTerpakai.nomorLengkap} ({nomorAgendaTerpakai.perihal}).
+                Ganti dengan nomor lain.
+              </div>
+            )}
+            {nomorAgendaValid && !nomorAgendaTerpakai && !memeriksaNomor && (
+              <div className="mt-2 rounded px-3 py-2 text-xs" style={{ backgroundColor: '#E8F5EE', color: '#1F7A4D' }}>
+                Nomor {nomorAgenda.trim()} belum dipakai di tahun {tahunSprin}.
+              </div>
+            )}
             <div
               className="mt-2 flex items-start gap-2 rounded px-3 py-2 text-xs"
               style={{ backgroundColor: '#F4F6F8', color: '#67788C' }}
@@ -306,7 +390,8 @@ export default function BuatSprin() {
               <IconInfo size={14} className="mt-0.5 shrink-0" />
               <span>
                 Nomor agenda berasal dari buku agenda dan dipakai bersama seluruh satuan fungsi, sekitar 240 nomor
-                per bulan. Sistem tidak mengusulkan nomor, hanya memeriksa.
+                per bulan. Sistem mengusulkan nomor tertinggi + 1 dan memeriksa apakah nomor sudah terpakai — angka
+                tetap bisa diganti manual agar cocok dengan buku agenda fisik.
               </span>
             </div>
             <div className="mt-4">
@@ -443,14 +528,16 @@ export default function BuatSprin() {
                     Dasar
                   </div>
                   <ol className="space-y-1 text-xs">
-                    {preset.dasarHukumBaku.map((teks, i) => (
-                      <li key={i} className="flex gap-2">
-                        <span style={{ color: '#67788C', fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Consolas, monospace' }}>
-                          {i + 1}.
-                        </span>
-                        <span>{teks}</span>
-                      </li>
-                    ))}
+                    {[...preset.dasarHukumBaku, ...(dasarHukumRujukan.trim() ? [dasarHukumRujukan.trim()] : [])].map(
+                      (teks, i) => (
+                        <li key={i} className="flex gap-2">
+                          <span style={{ color: '#67788C', fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Consolas, monospace' }}>
+                            {i + 1}.
+                          </span>
+                          <span>{teks}</span>
+                        </li>
+                      ),
+                    )}
                   </ol>
                 </div>
                 <div>
@@ -475,7 +562,7 @@ export default function BuatSprin() {
           <div className="flex flex-wrap gap-2">
             <button
               type="button"
-              disabled={!siapDisimpan || menyimpan}
+              disabled={!siapDiajukan || menyimpan}
               onClick={handleKlikSimpan}
               className="inline-flex items-center gap-2 rounded px-4 py-2 text-sm font-semibold transition hover:opacity-90 disabled:opacity-40"
               style={{ backgroundColor: '#0E1B2C', color: '#FFFFFF', border: '1px solid #0E1B2C' }}
@@ -484,7 +571,9 @@ export default function BuatSprin() {
             </button>
             <button
               type="button"
-              disabled={!siapDisimpan || menyimpan}
+              disabled={!siapSimpanDraf || menyimpan}
+              onClick={() => prosesAjukan('DRAF')}
+              title="Draf bisa disimpan tanpa nomor agenda dan tanpa personel, lalu dilanjutkan nanti."
               className="inline-flex items-center gap-2 rounded px-4 py-2 text-sm font-semibold transition hover:opacity-90 disabled:opacity-40"
               style={{ backgroundColor: '#FFFFFF', color: '#1A2634', border: '1px solid #DDE3EA' }}
             >
@@ -530,9 +619,14 @@ export default function BuatSprin() {
               {pesanError}
             </p>
           )}
+          {tanggalTerbalik && (
+            <p className="text-xs font-semibold" style={{ color: '#B3261E' }}>
+              Tanggal selesai lebih awal dari tanggal mulai.
+            </p>
+          )}
           <p className="text-xs" style={{ color: '#67788C' }}>
-            Lengkapi nomor agenda yang belum terpakai, perihal, pertimbangan, lokasi, dan tempatkan minimal satu
-            personel.
+            Untuk diajukan: lengkapi nomor agenda yang belum terpakai, perihal, pertimbangan, lokasi, dan tempatkan
+            minimal satu personel. Untuk disimpan sebagai draf: cukup perihal.
           </p>
         </div>
 

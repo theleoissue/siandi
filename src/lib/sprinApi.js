@@ -39,11 +39,19 @@ function petaSprin(row) {
         .map(petaPersonel),
     }))
   const jumlahPersonel = kelompok.reduce((acc, k) => acc + k.personel.length, 0)
-  const dasar = (row.sprin_dasar_hukum_baku ?? [])
+  // Dasar = dasar hukum baku milik jenis kegiatan, lalu dasar hukum rujukan
+  // yang diketik khusus untuk Sprin ini (mis. DH-07 Informasi Khusus Intelkam).
+  const dasarBaku = (row.sprin_dasar_hukum_baku ?? [])
     .slice()
     .sort((a, b) => a.urutan - b.urutan)
     .map((d) => d.dasar_hukum_baku?.teks)
     .filter(Boolean)
+  const dasarRujukan = (row.dasar_hukum_rujukan ?? [])
+    .slice()
+    .sort((a, b) => a.urutan - b.urutan)
+    .map((d) => d.perihal)
+    .filter(Boolean)
+  const dasar = [...dasarBaku, ...dasarRujukan]
 
   return {
     id: row.id,
@@ -87,6 +95,7 @@ const SELECT_SPRIN_LENGKAP = `
   jenis_kegiatan:jenis_kegiatan_id ( nama, kode_klasifikasi ),
   penandatangan:penandatangan_id ( nama, pangkat, nrp ),
   sprin_dasar_hukum_baku ( urutan, dasar_hukum_baku ( teks ) ),
+  dasar_hukum_rujukan ( urutan, jenis_dokumen, perihal ),
   sprin_kelompok (
     id, nama_kelompok, kelompok_besar, sifat, urutan,
     sprin_personel (
@@ -97,18 +106,45 @@ const SELECT_SPRIN_LENGKAP = `
   )
 `
 
+// Buku agenda berjalan per tahun (nomor_lengkap memuat tahun, jadi nomor yang
+// sama di tahun berbeda bukan duplikat) -- semua pemeriksaan nomor agenda
+// dibatasi ke tahun tanggal_mulai Sprin yang sedang disusun.
+function rentangTahun(tahun) {
+  return { awal: `${tahun}-01-01`, akhir: `${tahun}-12-31` }
+}
+
 // BR-01: nomor agenda diusulkan dari nomor tertinggi tercatat + 1 -- field
 // tetap bisa disunting manual di form supaya bisa disinkronkan ke buku agenda
 // fisik kalau berbeda.
-export async function ambilUsulanNomorAgenda() {
+export async function ambilUsulanNomorAgenda(tahun) {
+  const { awal, akhir } = rentangTahun(tahun)
   const { data, error } = await supabase
     .from('surat_perintah')
     .select('nomor_agenda')
+    .gte('tanggal_mulai', awal)
+    .lte('tanggal_mulai', akhir)
     .order('nomor_agenda', { ascending: false })
     .limit(1)
     .maybeSingle()
   if (error) throw error
   return (data?.nomor_agenda ?? 0) + 1
+}
+
+// BR-01: sistem memeriksa nomor agenda yang diketik supaya tidak bentrok dengan
+// nomor yang sudah dipakai Sprin lain di tahun yang sama.
+export async function cariPemakaiNomorAgenda(nomorAgenda, tahun) {
+  const { awal, akhir } = rentangTahun(tahun)
+  const { data, error } = await supabase
+    .from('surat_perintah')
+    .select('id, nomor_lengkap, perihal')
+    .eq('nomor_agenda', nomorAgenda)
+    .gte('tanggal_mulai', awal)
+    .lte('tanggal_mulai', akhir)
+    .limit(1)
+    .maybeSingle()
+  if (error) throw error
+  if (!data) return null
+  return { id: data.id, nomorLengkap: data.nomor_lengkap, perihal: data.perihal }
 }
 
 export async function ambilDaftarSprin() {
@@ -193,7 +229,9 @@ export async function ajukanSprinDb(data) {
   const { data: sp, error: spErr } = await supabase
     .from('surat_perintah')
     .insert({
-      nomor_agenda: Number(data.nomorAgenda),
+      // Kosong -> null, bukan Number('') yang jadi 0 dan bikin nomor_lengkap
+      // terbentuk sebagai "SPRIN/0/..." (BR-17: kosong hanya sah selama DRAF).
+      nomor_agenda: String(data.nomorAgenda ?? '').trim() === '' ? null : Number(data.nomorAgenda),
       jenis_kegiatan_id: jk.id,
       perihal: data.perihal,
       pertimbangan: data.pertimbangan,
@@ -201,13 +239,28 @@ export async function ajukanSprinDb(data) {
       tanggal_mulai: data.tanggalMulai,
       tanggal_selesai: data.tanggalSelesai,
       jam_apel: data.jamApel || null,
-      status: 'MENUNGGU_PERSETUJUAN',
+      // BR-17: nomor agenda boleh kosong selama masih DRAF, wajib begitu diajukan.
+      status: data.status === 'DRAF' ? 'DRAF' : 'MENUNGGU_PERSETUJUAN',
       disusun_oleh: pgId,
       butir_untuk: data.butirUntuk ?? null,
     })
     .select('id')
     .single()
   if (spErr) throw spErr
+
+  // Dasar hukum rujukan (mis. DH-07 Informasi Khusus Intelkam) diketik bebas
+  // per Sprin, bukan dari daftar baku -- disimpan di tabelnya sendiri. Teks utuh
+  // masuk ke `perihal` karena form memang meminta satu kalimat rujukan lengkap,
+  // bukan nomor/tanggal terpisah.
+  if (data.dasarHukumRujukan?.trim()) {
+    const { error: dhrErr } = await supabase.from('dasar_hukum_rujukan').insert({
+      surat_perintah_id: sp.id,
+      jenis_dokumen: data.kodeDasarHukumRujukan ?? 'RUJUKAN',
+      perihal: data.dasarHukumRujukan.trim(),
+      urutan: 0,
+    })
+    if (dhrErr) throw dhrErr
+  }
 
   // BR-03: dasar hukum baku untuk jenis kegiatan ini -- dicocokkan lewat teks
   // persis (dasar_hukum_baku belum punya kolom jenis_kegiatan_id di skema saat

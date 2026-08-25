@@ -348,8 +348,9 @@ export default function SprinDetail({ peranSaya }) {
             </div>
           ) : (
             <div className="p-6 text-sm" style={{ color: '#67788C' }}>
-              Detail lengkap (pertimbangan, dasar, untuk) untuk Sprin arsip ini menyusul di tahap sambungkan data
-              asli — belum diambil dari sumber.
+              {sprin.status === 'Draf'
+                ? 'Draf ini belum diisi pertimbangan, dasar, dan butir perintah. Lengkapi dulu sebelum diajukan.'
+                : 'Detail lengkap (pertimbangan, dasar, untuk) untuk Sprin arsip ini menyusul di tahap sambungkan data asli — belum diambil dari sumber.'}
             </div>
           )
         ) : (
