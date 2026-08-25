@@ -2,6 +2,30 @@ import { useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { IconCheck } from '../components/icons'
 import { useSprinStore, STATUS_BADGE_STYLE } from '../lib/sprinContext'
+import { buatBlobSuratDocx, bisaDicetakSurat } from '../features/export/suratDocx'
+import { buatBlobLampiranXlsx } from '../features/export/lampiranXlsx'
+import { unduhBlob, namaFileAman } from '../features/export/downloadBlob'
+
+function IconDownload(props) {
+  return (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      width={props.size ?? 15}
+      height={props.size ?? 15}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+      <path d="M7 10l5 5 5-5" />
+      <path d="M12 15V3" />
+    </svg>
+  )
+}
 
 function IconX(props) {
   return (
@@ -31,6 +55,7 @@ export default function SprinDetail({ peranSaya }) {
   const [catatan, setCatatan] = useState('')
   const [memproses, setMemproses] = useState(false)
   const [pesanError, setPesanError] = useState('')
+  const [mengunduh, setMengunduh] = useState('')
 
   const sprin = cariSprin(id)
   if (!sprin) {
@@ -70,6 +95,30 @@ export default function SprinDetail({ peranSaya }) {
     }
   }
 
+  async function handleUnduhSurat() {
+    setMengunduh('surat')
+    try {
+      const blob = await buatBlobSuratDocx(sprin)
+      unduhBlob(blob, `${namaFileAman(sprin.nomorLengkap)}.docx`)
+    } catch (err) {
+      setPesanError(err.message ?? 'Gagal membuat berkas surat.')
+    } finally {
+      setMengunduh('')
+    }
+  }
+
+  function handleUnduhLampiran() {
+    setMengunduh('lampiran')
+    try {
+      const blob = buatBlobLampiranXlsx(sprin)
+      unduhBlob(blob, `Lampiran_${namaFileAman(sprin.nomorLengkap)}.xlsx`)
+    } catch (err) {
+      setPesanError(err.message ?? 'Gagal membuat berkas lampiran.')
+    } finally {
+      setMengunduh('')
+    }
+  }
+
   return (
     <main className="flex-1 overflow-y-auto p-5">
       <button
@@ -105,6 +154,34 @@ export default function SprinDetail({ peranSaya }) {
               {sprin.status}
             </span>
           </div>
+          {sprin.status === 'Terbit' && (
+            <div className="mt-4 flex flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={handleUnduhSurat}
+                disabled={!bisaDicetakSurat(sprin) || Boolean(mengunduh)}
+                title={!bisaDicetakSurat(sprin) ? 'Isi lengkap surat ini belum tersedia (Sprin arsip lama)' : undefined}
+                className="inline-flex items-center gap-2 rounded px-3 py-1.5 text-xs font-semibold disabled:opacity-40"
+                style={{ backgroundColor: '#C8A24A', color: '#0E1B2C' }}
+              >
+                <IconDownload size={14} /> {mengunduh === 'surat' ? 'Membuat…' : 'Unduh surat (.docx)'}
+              </button>
+              <button
+                type="button"
+                onClick={handleUnduhLampiran}
+                disabled={Boolean(mengunduh)}
+                className="inline-flex items-center gap-2 rounded px-3 py-1.5 text-xs font-semibold disabled:opacity-40"
+                style={{ backgroundColor: '#FFFFFF', color: '#0E1B2C' }}
+              >
+                <IconDownload size={14} /> {mengunduh === 'lampiran' ? 'Membuat…' : 'Unduh lampiran (.xlsx)'}
+              </button>
+            </div>
+          )}
+          {pesanError && !bisaMemutuskan && (
+            <p className="mt-2 text-xs font-semibold" style={{ color: '#FFB4A8' }}>
+              {pesanError}
+            </p>
+          )}
         </div>
 
         <div className="flex gap-1 px-6 pt-4">

@@ -39,6 +39,11 @@ function petaSprin(row) {
         .map(petaPersonel),
     }))
   const jumlahPersonel = kelompok.reduce((acc, k) => acc + k.personel.length, 0)
+  const dasar = (row.sprin_dasar_hukum_baku ?? [])
+    .slice()
+    .sort((a, b) => a.urutan - b.urutan)
+    .map((d) => d.dasar_hukum_baku?.teks)
+    .filter(Boolean)
 
   return {
     id: row.id,
@@ -46,6 +51,8 @@ function petaSprin(row) {
     perihal: row.perihal,
     pertimbangan: row.pertimbangan,
     lokasi: row.lokasi,
+    dasar: dasar.length > 0 ? dasar : undefined,
+    untuk: row.butir_untuk ?? undefined,
     jenisKegiatanNama: row.jenis_kegiatan?.nama,
     kodeKlasifikasi: row.jenis_kegiatan?.kode_klasifikasi,
     tanggalMulai: row.tanggal_mulai,
@@ -67,8 +74,9 @@ function petaSprin(row) {
 
 const SELECT_SPRIN_LENGKAP = `
   id, nomor_lengkap, perihal, pertimbangan, lokasi, tanggal_mulai, tanggal_selesai,
-  jam_apel, status, catatan_pemeriksaan,
+  jam_apel, status, catatan_pemeriksaan, butir_untuk,
   jenis_kegiatan:jenis_kegiatan_id ( nama, kode_klasifikasi ),
+  sprin_dasar_hukum_baku ( urutan, dasar_hukum_baku ( teks ) ),
   sprin_kelompok (
     id, nama_kelompok, kelompok_besar, sifat, urutan,
     sprin_personel (
@@ -171,10 +179,31 @@ export async function ajukanSprinDb(data) {
       jam_apel: data.jamApel || null,
       status: 'MENUNGGU_PERSETUJUAN',
       disusun_oleh: pgId,
+      butir_untuk: data.butirUntuk ?? null,
     })
     .select('id')
     .single()
   if (spErr) throw spErr
+
+  // BR-03: dasar hukum baku untuk jenis kegiatan ini -- dicocokkan lewat teks
+  // persis (dasar_hukum_baku belum punya kolom jenis_kegiatan_id di skema saat
+  // ini, jadi belum ada cara relasional untuk "dasar hukum milik jenis X").
+  if (data.dasarHukumBaku?.length > 0) {
+    const { data: dasarCocok, error: dhErr } = await supabase
+      .from('dasar_hukum_baku')
+      .select('id, teks')
+      .in('teks', data.dasarHukumBaku)
+    if (dhErr) throw dhErr
+    const petaTeksKeId = new Map((dasarCocok ?? []).map((d) => [d.teks, d.id]))
+    const barisDasar = data.dasarHukumBaku
+      .map((teks, i) => ({ dasar_hukum_baku_id: petaTeksKeId.get(teks), urutan: i }))
+      .filter((b) => b.dasar_hukum_baku_id)
+      .map((b) => ({ ...b, surat_perintah_id: sp.id }))
+    if (barisDasar.length > 0) {
+      const { error: sdhErr } = await supabase.from('sprin_dasar_hukum_baku').insert(barisDasar)
+      if (sdhErr) throw sdhErr
+    }
+  }
 
   const { data: kelompokBaru, error: skErr } = await supabase
     .from('sprin_kelompok')

@@ -169,6 +169,8 @@ export default function BuatSprin() {
         jamApel,
         lokasi,
         kelompok,
+        butirUntuk,
+        dasarHukumBaku: preset.dasarHukumBaku,
         konflikBentrok: konflikMenonjolAktif.map((k) => ({
           nrp: k.nrp,
           nama: k.nama,
