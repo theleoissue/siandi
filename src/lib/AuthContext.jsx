@@ -32,8 +32,19 @@ export function AuthProvider({ children }) {
 
   const sedangMemuat = session === undefined || (Boolean(session) && memuatProfil)
 
+  // Dipanggil manual setelah daftar() -- signUp() memicu fetch profil di atas
+  // lebih cepat dari tautkan_akun_baru() selesai (race), jadi hasil pertama
+  // sering masih null. Perlu ditarik ulang begitu link-nya benar-benar selesai.
+  async function muatUlangProfil() {
+    if (!session) return
+    setMemuatProfil(true)
+    const { data, error } = await ambilProfilSaya(session.user.id)
+    setProfil(error ? null : data)
+    setMemuatProfil(false)
+  }
+
   return (
-    <AuthContext.Provider value={{ session, profil, sedangMemuat, keluar }}>
+    <AuthContext.Provider value={{ session, profil, sedangMemuat, keluar, muatUlangProfil }}>
       {children}
     </AuthContext.Provider>
   )

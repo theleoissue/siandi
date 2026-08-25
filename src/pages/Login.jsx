@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { IconShield } from '../components/icons'
-import { masuk, daftar } from '../lib/auth'
+import { masuk, daftar, useAuth } from '../lib/auth'
 
 const inputStyle = {
   border: '1px solid #DDE3EA',
@@ -9,6 +9,7 @@ const inputStyle = {
 }
 
 export default function Login() {
+  const { muatUlangProfil } = useAuth()
   const [mode, setMode] = useState('masuk') // 'masuk' | 'daftar'
   const [nrp, setNrp] = useState('')
   const [password, setPassword] = useState('')
@@ -43,6 +44,7 @@ export default function Login() {
         await masuk(nrp, password)
       } else {
         await daftar(nrp, password)
+        await muatUlangProfil()
         setSukses('Akun berhasil dibuat dan langsung masuk.')
       }
     } catch (err) {
