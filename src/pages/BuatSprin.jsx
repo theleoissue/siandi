@@ -1,6 +1,10 @@
 import { useMemo, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { IconInfo, IconCheck, IconPlus, IconFolderPlus } from '../components/icons'
 import { JENIS_KEGIATAN_OPTIONS, PRESET_UNJUK_RASA, bangunButirUntuk } from '../lib/jenisKegiatanPreset'
+import { cariPersonelContoh } from '../lib/personelContoh'
+import { useSprinStore } from '../lib/SprinStore'
+import { romawiBulan, tanggalDenganHari, labelWaktu } from '../lib/format'
 
 const inputStyle = {
   border: '1px solid #DDE3EA',
@@ -22,6 +26,9 @@ function Field({ label, required, children }) {
 }
 
 export default function BuatSprin() {
+  const navigate = useNavigate()
+  const { ajukanSprin } = useSprinStore()
+
   const [nomorAgenda, setNomorAgenda] = useState('')
   const [jenisKegiatan, setJenisKegiatan] = useState('PENGAMANAN UNJUK RASA')
   const [perihal, setPerihal] = useState('')
@@ -37,17 +44,18 @@ export default function BuatSprin() {
   const preset = isPresetTersedia ? PRESET_UNJUK_RASA : null
 
   const [kelompok, setKelompok] = useState(() =>
-    PRESET_UNJUK_RASA.kelompokBaku.map((k) => ({ ...k, jumlahPersonel: 0 })),
+    PRESET_UNJUK_RASA.kelompokBaku.map((k) => ({ ...k, personel: [] })),
   )
   const [kelompokAktifIdx, setKelompokAktifIdx] = useState(0)
   const [pencarianPersonel, setPencarianPersonel] = useState('')
 
-  const totalPersonel = kelompok.reduce((acc, k) => acc + k.jumlahPersonel, 0)
+  const totalPersonel = kelompok.reduce((acc, k) => acc + k.personel.length, 0)
   const kelompokAktif = kelompok[kelompokAktifIdx]
+  const hasilPencarian = useMemo(() => cariPersonelContoh(pencarianPersonel), [pencarianPersonel])
 
   function tambahKelompok(sifat) {
     const nama = sifat === 'pengendali' ? 'KELOMPOK BARU' : `TIM ${kelompok.length + 1}`
-    setKelompok((prev) => [...prev, { nama, sifat, jumlahPersonel: 0 }])
+    setKelompok((prev) => [...prev, { nama, sifat, personel: [] }])
     setKelompokAktifIdx(kelompok.length)
   }
 
@@ -63,6 +71,17 @@ export default function BuatSprin() {
     setKelompok((prev) => prev.map((k, i) => (i === kelompokAktifIdx ? { ...k, kelompokBesar } : k)))
   }
 
+  function tambahPersonelKeKelompokAktif(personel) {
+    setKelompok((prev) =>
+      prev.map((k, i) =>
+        i === kelompokAktifIdx && !k.personel.some((p) => p.nrp === personel.nrp)
+          ? { ...k, personel: [...k.personel, { ...personel, jabatanOperasional: k.nama }] }
+          : k,
+      ),
+    )
+    setPencarianPersonel('')
+  }
+
   const butirUntuk = useMemo(() => {
     if (!preset) return null
     return bangunButirUntuk(preset, { tanggalMulai, jamApel, apelDipimpinOleh })
@@ -72,9 +91,28 @@ export default function BuatSprin() {
     ? `SPRIN/${nomorAgenda}/${romawiBulan(tanggalMulai)}/${preset.kodeKlasifikasi}/${new Date(tanggalMulai).getFullYear()}`
     : null
 
-  const siapDisimpan = Boolean(
-    nomorAgenda && perihal && pertimbangan && lokasi && totalPersonel > 0,
-  )
+  const siapDisimpan = Boolean(nomorAgenda && perihal && pertimbangan && lokasi && totalPersonel > 0 && preset)
+
+  function handleAjukan() {
+    if (!siapDisimpan) return
+    const id = ajukanSprin({
+      nomorLengkap,
+      perihal,
+      pertimbangan,
+      jenisKegiatanNama: preset.nama,
+      kodeKlasifikasi: preset.kodeKlasifikasi,
+      waktuLabel: labelWaktu({ tanggalMulai, tanggalSelesai, jamApel }),
+      waktuPanjang: tanggalDenganHari(tanggalMulai),
+      apelLabel: `${jamApel} WIB, dipimpin ${apelDipimpinOleh}`,
+      penandatangan: 'KAPOLRES',
+      jumlahPersonel: totalPersonel,
+      jumlahKelompok: kelompok.length,
+      dasar: preset.dasarHukumBaku,
+      untuk: butirUntuk,
+      kelompok,
+    })
+    navigate(`/sprin/${id}`)
+  }
 
   return (
     <main className="flex-1 overflow-y-auto p-5">
@@ -298,6 +336,7 @@ export default function BuatSprin() {
             <button
               type="button"
               disabled={!siapDisimpan}
+              onClick={handleAjukan}
               className="inline-flex items-center gap-2 rounded px-4 py-2 text-sm font-semibold transition hover:opacity-90 disabled:opacity-40"
               style={{ backgroundColor: '#0E1B2C', color: '#FFFFFF', border: '1px solid #0E1B2C' }}
             >
@@ -363,7 +402,7 @@ export default function BuatSprin() {
                     <div className="truncate font-medium">{k.nama}</div>
                   </div>
                   <span style={{ fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Consolas, monospace', opacity: 0.7 }}>
-                    {k.jumlahPersonel}
+                    {k.personel.length}
                   </span>
                 </button>
               )
@@ -415,6 +454,18 @@ export default function BuatSprin() {
                   pengendali
                 </button>
               </div>
+              {kelompokAktif.personel.length > 0 && (
+                <ul className="space-y-1 pt-1 text-xs">
+                  {kelompokAktif.personel.map((p) => (
+                    <li key={p.nrp} className="flex items-center justify-between gap-2 rounded px-2 py-1" style={{ backgroundColor: '#FFFFFF', border: '1px solid #DDE3EA' }}>
+                      <span className="truncate">{p.nama}</span>
+                      <span style={{ color: '#67788C', fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Consolas, monospace' }}>
+                        {p.nrp}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              )}
             </div>
           )}
 
@@ -426,23 +477,30 @@ export default function BuatSprin() {
             onChange={(e) => setPencarianPersonel(e.target.value)}
           />
           <div className="mt-2 text-xs" style={{ color: '#67788C' }}>
-            Ketik minimal dua huruf. Sumber: 1.171 personel.
+            Ketik minimal dua huruf. Contoh 2 personel — pencarian 1.171 KUATPERS asli menyusul di tahap sambungkan
+            data asli.
           </div>
-          <div className="mt-2 max-h-44 space-y-1 overflow-y-auto text-xs" style={{ color: '#67788C' }}>
-            {pencarianPersonel.trim().length >= 2 && (
-              <div className="rounded px-2 py-1.5" style={{ border: '1px solid #DDE3EA' }}>
-                Pencarian KUATPERS nyata belum tersambung — menyusul di tahap sambungkan data asli.
-              </div>
-            )}
+          <div className="mt-2 max-h-44 space-y-1 overflow-y-auto text-xs">
+            {hasilPencarian.map((p) => (
+              <button
+                key={p.nrp}
+                type="button"
+                onClick={() => tambahPersonelKeKelompokAktif(p)}
+                className="flex w-full items-center gap-2 rounded px-2.5 py-2 text-left hover:opacity-70"
+                style={{ border: '1px solid #DDE3EA' }}
+              >
+                <IconPlus size={13} className="shrink-0" color="#67788C" />
+                <div className="min-w-0 flex-1">
+                  <div className="truncate font-medium">{p.nama}</div>
+                  <div className="truncate" style={{ color: '#67788C', fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Consolas, monospace' }}>
+                    {p.nrp} · {p.jabatanStruktur}
+                  </div>
+                </div>
+              </button>
+            ))}
           </div>
         </div>
       </div>
     </main>
   )
-}
-
-function romawiBulan(isoDate) {
-  const bulan = new Date(isoDate).getMonth() + 1
-  const angka = ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X', 'XI', 'XII']
-  return angka[bulan - 1]
 }

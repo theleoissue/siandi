@@ -1,15 +1,18 @@
 import { useMemo, useState } from 'react'
-import { DAFTAR_SPRIN_CONTOH, STATUS_BADGE_STYLE } from '../lib/daftarSprinContoh'
+import TabelSprin from '../components/TabelSprin'
+import { useSprinStore } from '../lib/SprinStore'
 
 const TABS = ['Semua', 'Menunggu', 'Terbit', 'Dikembalikan']
+const TAB_KE_STATUS = { Menunggu: 'Menunggu Persetujuan', Terbit: 'Terbit', Dikembalikan: 'Dikembalikan' }
 
 export default function DaftarSprin() {
+  const { daftar } = useSprinStore()
   const [tabAktif, setTabAktif] = useState('Semua')
 
-  const daftar = useMemo(() => {
-    if (tabAktif === 'Semua') return DAFTAR_SPRIN_CONTOH
-    return DAFTAR_SPRIN_CONTOH.filter((s) => s.status === tabAktif)
-  }, [tabAktif])
+  const daftarTersaring = useMemo(() => {
+    if (tabAktif === 'Semua') return daftar
+    return daftar.filter((s) => s.status === TAB_KE_STATUS[tabAktif])
+  }, [daftar, tabAktif])
 
   return (
     <main className="flex-1 overflow-y-auto p-5">
@@ -43,71 +46,7 @@ export default function DaftarSprin() {
         })}
       </div>
 
-      <div className="rounded-lg overflow-hidden" style={{ backgroundColor: '#FFFFFF', border: '1px solid #DDE3EA' }}>
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead>
-              <tr style={{ backgroundColor: '#F4F6F8' }}>
-                {['Nomor', 'Perihal', 'Waktu', 'Personel', 'Status', ''].map((h) => (
-                  <th
-                    key={h}
-                    className="px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wide"
-                    style={{ color: '#67788C' }}
-                  >
-                    {h}
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {daftar.map((s) => (
-                <tr key={s.nomor} style={{ borderTop: '1px solid #DDE3EA' }}>
-                  <td
-                    className="px-4 py-3 align-top text-xs"
-                    style={{ fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Consolas, monospace', color: '#67788C' }}
-                  >
-                    {s.nomor}
-                  </td>
-                  <td className="px-4 py-3 align-top">
-                    <div className="max-w-xs font-medium">{s.perihal}</div>
-                    <div className="text-xs" style={{ color: '#67788C' }}>
-                      {s.jenis}
-                    </div>
-                  </td>
-                  <td className="px-4 py-3 align-top text-xs">{s.waktu}</td>
-                  <td
-                    className="px-4 py-3 align-top text-xs"
-                    style={{ fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Consolas, monospace' }}
-                  >
-                    {s.personel}
-                    <div style={{ color: '#67788C' }}>{s.kelompok} kel.</div>
-                  </td>
-                  <td className="px-4 py-3 align-top">
-                    <span
-                      className="inline-block whitespace-nowrap rounded px-2 py-0.5 text-xs font-semibold"
-                      style={STATUS_BADGE_STYLE[s.status]}
-                    >
-                      {s.status}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3 align-top">
-                    <button type="button" className="text-xs font-semibold" style={{ color: '#0E1B2C' }}>
-                      Buka
-                    </button>
-                  </td>
-                </tr>
-              ))}
-              {daftar.length === 0 && (
-                <tr>
-                  <td colSpan={6} className="px-4 py-6 text-center text-xs" style={{ color: '#67788C' }}>
-                    Tidak ada Sprin dengan status ini.
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
-      </div>
+      <TabelSprin daftar={daftarTersaring} pesanKosong="Tidak ada Sprin dengan status ini." />
     </main>
   )
 }

@@ -1,20 +1,7 @@
+import { useMemo } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { IconChevronRight } from '../components/icons'
-
-const STAT_CARDS = [
-  { label: 'Sprin terbit', value: '9', color: '#1F7A4D' },
-  { label: 'Menunggu persetujuan', value: '0', color: '#8A6100' },
-  { label: 'Baris penugasan', value: '1.525', color: '#0E1B2C' },
-  { label: 'Personel terdata', value: '1.171', color: '#0E1B2C' },
-]
-
-const SPRIN_TERBARU = [
-  { judul: 'Operasi Kepolisian Pekat I Lodaya 2026', nomor: 'Sprin/368/II/OPS.1.3./2026 · 44 personel · 17 kelompok', status: 'Terbit' },
-  { judul: 'Pengamanan Hari Raya Idul Fitri 1447 H', nomor: 'Sprin/535/III/OPS.1.2.3./2026 · 617 personel · 43 kelompok', status: 'Terbit' },
-  { judul: 'Pengamanan Kedatangan Wakapolri ke Wilkum Polres Cimahi', nomor: 'Sprin/1421/VI/PAM.2.2./2026 · 104 personel · 17 kelompok', status: 'Terbit' },
-  { judul: 'Pengamanan Kunjungan Kerja Kapolri ke Sespim Lemdiklat Polri', nomor: 'Sprin/1491/VII/PAM.2.2./2026 · 315 personel · 20 kelompok', status: 'Terbit' },
-  { judul: 'Pengamanan Aksi Unjuk Rasa Aliansi SP/SB Kota Cimahi', nomor: 'Sprin/1600/VII/PAM.3.2./2026 · 242 personel · 40 kelompok', status: 'Terbit' },
-  { judul: 'Kegiatan Rutin yang Ditingkatkan / Patroli dan Razia Skala Besar', nomor: 'Sprin/1605/VII/PAM.1.3.2./2026 · 54 personel · 15 kelompok', status: 'Terbit' },
-]
+import { useSprinStore, STATUS_BADGE_STYLE } from '../lib/SprinStore'
 
 const BEBAN_PENUGASAN = [
   { nama: 'KOMPOL SAEFUL BAHRI, S. Pd. I.', jumlah: 7 },
@@ -29,6 +16,22 @@ const BEBAN_PENUGASAN = [
 const MAKS_BEBAN = Math.max(...BEBAN_PENUGASAN.map((b) => b.jumlah))
 
 export default function Dashboard() {
+  const { daftar } = useSprinStore()
+  const navigate = useNavigate()
+
+  const statCards = useMemo(() => {
+    const terbit = daftar.filter((s) => s.status === 'Terbit').length
+    const menunggu = daftar.filter((s) => s.status === 'Menunggu Persetujuan').length
+    return [
+      { label: 'Sprin terbit', value: String(terbit), color: '#1F7A4D' },
+      { label: 'Menunggu persetujuan', value: String(menunggu), color: '#8A6100' },
+      { label: 'Baris penugasan', value: '1.525', color: '#0E1B2C' },
+      { label: 'Personel terdata', value: '1.171', color: '#0E1B2C' },
+    ]
+  }, [daftar])
+
+  const sprinTerbaru = daftar.slice(0, 6)
+
   return (
     <main className="flex-1 overflow-y-auto p-5">
       <div className="mb-5">
@@ -41,7 +44,7 @@ export default function Dashboard() {
       </div>
 
       <div className="mb-5 grid grid-cols-2 gap-3 lg:grid-cols-4">
-        {STAT_CARDS.map((s) => (
+        {statCards.map((s) => (
           <div key={s.label} className="rounded-lg p-4" style={{ backgroundColor: '#FFFFFF', border: '1px solid #DDE3EA' }}>
             <div className="text-3xl" style={{ fontFamily: 'Georgia, "Times New Roman", serif', color: s.color }}>
               {s.value}
@@ -59,25 +62,26 @@ export default function Dashboard() {
             Surat perintah terbaru
           </div>
           <div className="space-y-2">
-            {SPRIN_TERBARU.map((s) => (
+            {sprinTerbaru.map((s) => (
               <button
-                key={s.nomor}
+                key={s.id}
                 type="button"
+                onClick={() => navigate(`/sprin/${s.id}`)}
                 className="flex w-full items-center gap-3 rounded px-3 py-2.5 text-left hover:opacity-80"
                 style={{ border: '1px solid #DDE3EA' }}
               >
                 <div className="min-w-0 flex-1">
-                  <div className="truncate text-sm font-medium">{s.judul}</div>
+                  <div className="truncate text-sm font-medium">{s.perihal}</div>
                   <div
                     className="mt-0.5 truncate text-xs"
                     style={{ color: '#67788C', fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Consolas, monospace' }}
                   >
-                    {s.nomor}
+                    {s.nomorLengkap} · {s.jumlahPersonel} personel · {s.jumlahKelompok} kelompok
                   </div>
                 </div>
                 <span
                   className="inline-block whitespace-nowrap rounded px-2 py-0.5 text-xs font-semibold"
-                  style={{ backgroundColor: '#E8F5EE', color: '#1F7A4D' }}
+                  style={STATUS_BADGE_STYLE[s.status]}
                 >
                   {s.status}
                 </span>

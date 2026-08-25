@@ -46,20 +46,15 @@ export const PRESET_UNJUK_RASA = {
   ],
 }
 
-const HARI = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', "Jum'at", 'Sabtu']
-const BULAN = [
-  'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
-  'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember',
-]
+import { namaHari, tanggalPanjang } from './format'
 
-export function formatTanggalIndonesia(isoDate) {
+function formatTanggalUntukButir(isoDate) {
   if (!isoDate) return null
-  const d = new Date(isoDate + 'T00:00:00')
-  return `${HARI[d.getDay()]} tanggal ${d.getDate()} ${BULAN[d.getMonth()]} ${d.getFullYear()}`
+  return `${namaHari(isoDate)} tanggal ${tanggalPanjang(isoDate)}`
 }
 
 export function bangunButirUntuk(preset, { tanggalMulai, jamApel, apelDipimpinOleh }) {
-  const tanggalText = formatTanggalIndonesia(tanggalMulai)
+  const tanggalText = formatTanggalUntukButir(tanggalMulai)
   const butirApel = tanggalText
     ? `apel pengamanan dilaksanakan pada hari ${tanggalText} pukul ${jamApel} WIB dipimpin oleh ${apelDipimpinOleh || '...'};`
     : `apel pengamanan dilaksanakan pada tanggal yang ditentukan pukul ${jamApel} WIB dipimpin oleh ${apelDipimpinOleh || '...'};`
