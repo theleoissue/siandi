@@ -72,6 +72,7 @@ export const CONTOH_USER_BY_VIEW_ROLE = {
     nama: 'AKP DEVI PUSPA SARI, S.Pd., M.M.',
     jabatan: 'KASUBBAG BINOPS BAG OPS',
     peran_sistem: 'KASUBBAG_BINOPS',
+    nrp: '87121335',
   },
   admin: {
     nama: 'IPDA RD ALI NURJAMAL, S.Psi., M.M.',

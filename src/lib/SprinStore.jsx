@@ -70,7 +70,9 @@ const SprinContext = createContext(null)
 
 export function SprinStoreProvider({ children }) {
   const [daftar, setDaftar] = useState(SPRIN_AWAL)
+  const [notifikasi, setNotifikasi] = useState([])
   const [nextId, setNextId] = useState(1)
+  const [nextNotifId, setNextNotifId] = useState(1)
 
   function ajukanSprin(data) {
     const id = `baru-${nextId}`
@@ -79,9 +81,39 @@ export function SprinStoreProvider({ children }) {
     return id
   }
 
+  // BR-14: notifikasi ke seluruh personel berakun (yang punya nrp) begitu status TERBIT.
+  function kirimNotifikasiTerbit(sprin) {
+    if (!sprin.kelompok) return
+    const baru = []
+    let counter = nextNotifId
+    for (const k of sprin.kelompok) {
+      for (const p of k.personel) {
+        if (!p.nrp) continue
+        baru.push({
+          id: `notif-${counter++}`,
+          nrp: p.nrp,
+          sprinId: sprin.id,
+          perihal: sprin.perihal,
+          nomorLengkap: sprin.nomorLengkap,
+          subjudul: `${k.nama} sebagai ${p.jabatanOperasional ?? k.nama}. Apel ${sprin.jamApel ?? ''} WIB.`,
+          dibaca: false,
+        })
+      }
+    }
+    setNextNotifId(counter)
+    setNotifikasi((prev) => [...baru, ...prev])
+  }
+
   function setujuiSprin(id, catatanPemeriksaan) {
+    // Efek samping (kirim notifikasi) sengaja dijalankan DI LUAR updater setDaftar --
+    // React StrictMode memanggil updater dua kali untuk memeriksa kemurniannya, jadi
+    // efek samping yang ditaruh di dalamnya akan ikut terpanggil dua kali juga.
+    const sprin = daftar.find((s) => s.id === id)
+    if (sprin) kirimNotifikasiTerbit({ ...sprin, status: 'Terbit' })
     setDaftar((prev) =>
-      prev.map((s) => (s.id === id ? { ...s, status: 'Terbit', catatanPemeriksaan: catatanPemeriksaan || null } : s)),
+      prev.map((s) =>
+        s.id === id ? { ...s, status: 'Terbit', catatanPemeriksaan: catatanPemeriksaan || null } : s,
+      ),
     )
   }
 
@@ -95,8 +127,19 @@ export function SprinStoreProvider({ children }) {
     return daftar.find((s) => s.id === id) ?? null
   }
 
+  function notifikasiUntuk(nrp) {
+    if (!nrp) return []
+    return notifikasi.filter((n) => n.nrp === nrp)
+  }
+
+  function tandaiNotifikasiDibaca(id) {
+    setNotifikasi((prev) => prev.map((n) => (n.id === id ? { ...n, dibaca: true } : n)))
+  }
+
   return (
-    <SprinContext.Provider value={{ daftar, ajukanSprin, setujuiSprin, kembalikanSprin, cariSprin }}>
+    <SprinContext.Provider
+      value={{ daftar, ajukanSprin, setujuiSprin, kembalikanSprin, cariSprin, notifikasiUntuk, tandaiNotifikasiDibaca }}
+    >
       {children}
     </SprinContext.Provider>
   )
