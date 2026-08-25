@@ -103,6 +103,8 @@ export default function BuatSprin() {
       kodeKlasifikasi: preset.kodeKlasifikasi,
       waktuLabel: labelWaktu({ tanggalMulai, tanggalSelesai, jamApel }),
       waktuPanjang: tanggalDenganHari(tanggalMulai),
+      tanggalMulai,
+      tanggalSelesai,
       jamApel,
       apelLabel: `${jamApel} WIB, dipimpin ${apelDipimpinOleh}`,
       penandatangan: 'KAPOLRES',
