@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { IconInfo, IconCheck, IconPlus, IconFolderPlus } from '../components/icons'
 import { JENIS_KEGIATAN_OPTIONS, PRESET_UNJUK_RASA, bangunButirUntuk } from '../lib/jenisKegiatanPreset'
-import { cariPersonelContoh } from '../lib/personelContoh'
+import { cariPersonelContoh, PERSONEL_CONTOH } from '../lib/personelContoh'
 import { useSprinStore } from '../lib/sprinContext'
 import { romawiBulan, tanggalDenganHari, labelWaktu } from '../lib/format'
 
@@ -480,8 +480,7 @@ export default function BuatSprin() {
             onChange={(e) => setPencarianPersonel(e.target.value)}
           />
           <div className="mt-2 text-xs" style={{ color: '#67788C' }}>
-            Ketik minimal dua huruf. Contoh 2 personel — pencarian 1.171 KUATPERS asli menyusul di tahap sambungkan
-            data asli.
+            Ketik minimal dua huruf. Sumber: {PERSONEL_CONTOH.length.toLocaleString('id-ID')} personel KUATPERS.
           </div>
           <div className="mt-2 max-h-44 space-y-1 overflow-y-auto text-xs">
             {hasilPencarian.map((p) => (

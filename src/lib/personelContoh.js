@@ -1,13 +1,19 @@
-// Contoh kecil data personel, diambil nyata dari hasil pencarian "de" di
-// SIANDI_Mockup_v3.html — BUKAN 1.171 data KUATPERS penuh. Cukup untuk menguji alur
-// Buat Sprin -> Persetujuan sampai data KUATPERS asli tersambung (tahap berikutnya).
-export const PERSONEL_CONTOH = [
-  { nama: 'AKP DEVI PUSPA SARI, S.Pd., M.M.', nrp: '87121335', pangkat: 'AKP', jabatanStruktur: 'KASUBBAG BINOPS BAG OPS' },
-  { nama: 'IPDA ALLANDEFIT RIHANDO DANANTASA, S.Tr.K.', nrp: '00121290', pangkat: 'IPDA', jabatanStruktur: 'PAUR SUBBAG BIN OPS BAG OPS' },
-]
+// Data personel asli dari KUATPERS (siandi_seed_v1.json), 1.176 baris.
+// Statis untuk sekarang -- akan pindah jadi query tabel `pengguna` di Supabase
+// begitu tahap "sambungkan data asli" jalan, tapi datanya sendiri sudah nyata.
+import PERSONEL_DATA from '../data/personel.json'
 
-export function cariPersonelContoh(kataKunci) {
+export const PERSONEL_CONTOH = PERSONEL_DATA
+
+export function cariPersonelContoh(kataKunci, maks = 20) {
   const q = kataKunci.trim().toLowerCase()
   if (q.length < 2) return []
-  return PERSONEL_CONTOH.filter((p) => p.nama.toLowerCase().includes(q))
+  const hasil = []
+  for (const p of PERSONEL_DATA) {
+    if (p.nama.toLowerCase().includes(q) || p.nrp.includes(q)) {
+      hasil.push(p)
+      if (hasil.length >= maks) break
+    }
+  }
+  return hasil
 }

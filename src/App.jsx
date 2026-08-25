@@ -9,9 +9,11 @@ import SprinDetail from './pages/SprinDetail'
 import Notifikasi from './pages/Notifikasi'
 import RiwayatPenugasan from './pages/RiwayatPenugasan'
 import Arsip from './pages/Arsip'
+import DataPersonel from './pages/DataPersonel'
 import SegeraHadir from './pages/SegeraHadir'
 import { CONTOH_USER_BY_VIEW_ROLE } from './lib/menu'
 import { SprinStoreProvider } from './lib/SprinStore'
+import { PERSONEL_CONTOH } from './lib/personelContoh'
 
 // Sementara: identitas & peran dikendalikan dropdown "Lihat sebagai" (fitur demo,
 // sama seperti mockup). Akan diganti sesi auth Supabase asli di tahap berikutnya.
@@ -26,7 +28,7 @@ export default function App() {
           element={
             <Layout
               user={user}
-              jumlahPersonel={1171}
+              jumlahPersonel={PERSONEL_CONTOH.length}
               jumlahSprin={9}
               viewAsRole={viewAsRole}
               onChangeViewAsRole={setViewAsRole}
@@ -45,7 +47,7 @@ export default function App() {
           <Route path="/arsip" element={<Arsip />} />
           <Route path="/riwayat" element={<RiwayatPenugasan />} />
           <Route path="/notifikasi" element={<Notifikasi nrpSaya={user.nrp} />} />
-          <Route path="/data-personel" element={<SegeraHadir judul="Data Personel" />} />
+          <Route path="/data-personel" element={<DataPersonel />} />
           <Route path="/jenis-kegiatan" element={<SegeraHadir judul="Jenis Kegiatan" />} />
           <Route path="/manajemen-pengguna" element={<SegeraHadir judul="Manajemen Pengguna" />} />
           <Route path="/log-aktivitas" element={<SegeraHadir judul="Log Aktivitas" />} />

@@ -2,6 +2,7 @@ import { useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { IconChevronRight } from '../components/icons'
 import { useSprinStore, STATUS_BADGE_STYLE } from '../lib/sprinContext'
+import { PERSONEL_CONTOH } from '../lib/personelContoh'
 
 const BEBAN_PENUGASAN = [
   { nama: 'KOMPOL SAEFUL BAHRI, S. Pd. I.', jumlah: 7 },
@@ -26,7 +27,7 @@ export default function Dashboard() {
       { label: 'Sprin terbit', value: String(terbit), color: '#1F7A4D' },
       { label: 'Menunggu persetujuan', value: String(menunggu), color: '#8A6100' },
       { label: 'Baris penugasan', value: '1.525', color: '#0E1B2C' },
-      { label: 'Personel terdata', value: '1.171', color: '#0E1B2C' },
+      { label: 'Personel terdata', value: PERSONEL_CONTOH.length.toLocaleString('id-ID'), color: '#0E1B2C' },
     ]
   }, [daftar])
 
