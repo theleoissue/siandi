@@ -3,6 +3,7 @@ import { Routes, Route } from 'react-router-dom'
 import Layout from './components/Layout'
 import Dashboard from './pages/Dashboard'
 import BuatSprin from './pages/BuatSprin'
+import DaftarSprin from './pages/DaftarSprin'
 import SegeraHadir from './pages/SegeraHadir'
 import { CONTOH_USER_BY_VIEW_ROLE } from './lib/menu'
 
@@ -31,7 +32,7 @@ export default function App() {
           element={user.peran_sistem === 'PERSONEL' ? <SegeraHadir judul="Penugasan Saya" /> : <Dashboard />}
         />
         <Route path="/buat-sprin" element={<BuatSprin />} />
-        <Route path="/daftar-sprin" element={<SegeraHadir judul="Daftar Sprin" />} />
+        <Route path="/daftar-sprin" element={<DaftarSprin />} />
         <Route path="/persetujuan" element={<SegeraHadir judul="Persetujuan" />} />
         <Route path="/arsip" element={<SegeraHadir judul="Arsip & Pencarian" />} />
         <Route path="/riwayat" element={<SegeraHadir judul="Riwayat Penugasan" />} />
