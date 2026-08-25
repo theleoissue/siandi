@@ -62,11 +62,13 @@ export const CONTOH_USER_BY_VIEW_ROLE = {
     nama: 'AKBP MOH. FARUK ROZI, S.H, S.I.K., M.Si',
     jabatan: 'KAPOLRES CIMAHI',
     peran_sistem: 'KAPOLRES',
+    nrp: '85052234',
   },
   kabagops: {
     nama: 'KOMPOL SAEFUL BAHRI, S. Pd. I.',
     jabatan: 'KABAG OPS',
     peran_sistem: 'KABAG_OPS',
+    nrp: '76010326',
   },
   binops: {
     nama: 'AKP DEVI PUSPA SARI, S.Pd., M.M.',
@@ -78,6 +80,7 @@ export const CONTOH_USER_BY_VIEW_ROLE = {
     nama: 'IPDA RD ALI NURJAMAL, S.Psi., M.M.',
     jabatan: 'PAURMIN BAG OPS',
     peran_sistem: 'PAURMIN',
+    nrp: '87110847',
   },
   personel: {
     nama: '—',
