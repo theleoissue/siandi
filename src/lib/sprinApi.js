@@ -243,6 +243,7 @@ export async function ajukanSprinDb(data) {
       tanggal_mulai: data.tanggalMulai,
       tanggal_selesai: data.tanggalSelesai,
       jam_apel: data.jamApel || null,
+      durasi_jam: data.durasiJam ?? null,
       // BR-17: nomor agenda boleh kosong selama masih DRAF, wajib begitu diajukan.
       status: data.status === 'DRAF' ? 'DRAF' : 'MENUNGGU_PERSETUJUAN',
       disusun_oleh: pgId,

@@ -60,10 +60,27 @@ function butirMelaksanakan(perihal) {
   return `melaksanakan ${teks.charAt(0).toLowerCase()}${teks.slice(1)};`
 }
 
-export function bangunButirUntuk(preset, { perihal, tanggalMulai, jamApel, apelDipimpinOleh }) {
+// Butir kedua bergantung sifat kegiatan:
+// - Kegiatan PAM (apel tunggal): "apel ... pada hari X pukul Y dipimpin oleh Z".
+// - Operasi (wajibDurasiManual, berhari-hari, tanpa apel tunggal): rentang
+//   tanggal pelaksanaan "dilaksanakan terhitung mulai tanggal X s.d Y".
+function butirWaktu(preset, { tanggalMulai, tanggalSelesai, jamApel, apelDipimpinOleh }) {
+  if (preset.wajibDurasiManual) {
+    if (tanggalMulai && tanggalSelesai) {
+      return `dilaksanakan terhitung mulai tanggal ${tanggalPanjang(tanggalMulai)} s.d ${tanggalPanjang(tanggalSelesai)};`
+    }
+    return `dilaksanakan sesuai jadwal operasi yang ditentukan;`
+  }
   const tanggalText = formatTanggalUntukButir(tanggalMulai)
-  const butirApel = tanggalText
+  return tanggalText
     ? `apel pengamanan dilaksanakan pada hari ${tanggalText} pukul ${jamApel} WIB dipimpin oleh ${apelDipimpinOleh || '...'};`
     : `apel pengamanan dilaksanakan pada tanggal yang ditentukan pukul ${jamApel} WIB dipimpin oleh ${apelDipimpinOleh || '...'};`
-  return [butirMelaksanakan(perihal), butirApel, ...preset.untukBaku]
+}
+
+export function bangunButirUntuk(preset, { perihal, tanggalMulai, tanggalSelesai, jamApel, apelDipimpinOleh }) {
+  return [
+    butirMelaksanakan(perihal),
+    butirWaktu(preset, { tanggalMulai, tanggalSelesai, jamApel, apelDipimpinOleh }),
+    ...(preset.untukBaku ?? []),
+  ]
 }

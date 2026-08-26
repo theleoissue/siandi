@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { IconInfo, IconCheck, IconPlus, IconFolderPlus } from '../components/icons'
-import { JENIS_KEGIATAN_OPTIONS, PRESET_UNJUK_RASA, bangunButirUntuk } from '../lib/jenisKegiatanPreset'
+import { bangunButirUntuk } from '../lib/jenisKegiatanPreset'
+import { ambilDaftarJenisKegiatan, ambilPresetJenisKegiatan } from '../lib/jenisKegiatanApi'
 import { SATUAN_FUNGSI_OPTIONS } from '../lib/personelContoh'
 import { cariPersonelDb } from '../lib/personelApi'
 import { useSprinStore } from '../lib/sprinContext'
@@ -56,6 +57,9 @@ export default function BuatSprin() {
   const [pesanError, setPesanError] = useState('')
 
   const [nomorAgenda, setNomorAgenda] = useState('')
+  const [jenisOptions, setJenisOptions] = useState([
+    { nama: 'PENGAMANAN UNJUK RASA', kode: 'PAM.3.2.', rumpun: 'Pengamanan' },
+  ])
   const [jenisKegiatan, setJenisKegiatan] = useState('PENGAMANAN UNJUK RASA')
   const [perihal, setPerihal] = useState('')
   const [pertimbangan, setPertimbangan] = useState('')
@@ -65,6 +69,20 @@ export default function BuatSprin() {
   const [tanggalSelesai, setTanggalSelesai] = useState(hariIniIso)
   const [jamApel, setJamApel] = useState('08:00')
   const [dasarHukumRujukan, setDasarHukumRujukan] = useState('')
+  const [durasiJam, setDurasiJam] = useState('') // BR-06: durasi manual untuk jenis operasi
+
+  // Preset (kelompok baku, dasar hukum, butir untuk, kode klasifikasi) dimuat
+  // dari DB sesuai jenis kegiatan -- tidak lagi hardcode cuma Unjuk Rasa.
+  const [preset, setPreset] = useState(null)
+  const [memuatPreset, setMemuatPreset] = useState(true)
+
+  useEffect(() => {
+    ambilDaftarJenisKegiatan()
+      .then((daftar) => {
+        if (daftar.length > 0) setJenisOptions(daftar)
+      })
+      .catch(() => {})
+  }, [])
   // BR-01: hasil pemeriksaan nomor agenda ke DB -- null = belum/tidak diperiksa.
   const [nomorAgendaTerpakai, setNomorAgendaTerpakai] = useState(null)
   const [memeriksaNomor, setMemeriksaNomor] = useState(false)
@@ -109,12 +127,7 @@ export default function BuatSprin() {
     }
   }, [nomorAgenda, nomorAgendaValid, tahunSprin])
 
-  const isPresetTersedia = jenisKegiatan === 'PENGAMANAN UNJUK RASA'
-  const preset = isPresetTersedia ? PRESET_UNJUK_RASA : null
-
-  const [kelompok, setKelompok] = useState(() =>
-    PRESET_UNJUK_RASA.kelompokBaku.map((k) => ({ ...k, personel: [] })),
-  )
+  const [kelompok, setKelompok] = useState([])
   const [kelompokAktifIdx, setKelompokAktifIdx] = useState(0)
   const [pencarianPersonel, setPencarianPersonel] = useState('')
   const [filterSatuanFungsi, setFilterSatuanFungsi] = useState('')
@@ -129,6 +142,32 @@ export default function BuatSprin() {
   const [hasilPencarian, setHasilPencarian] = useState([])
   const [sedangMencari, setSedangMencari] = useState(false)
   const [formNonKuatpers, setFormNonKuatpers] = useState(null)
+
+  // Muat preset dari DB tiap kali jenis kegiatan berganti, lalu reset susunan
+  // kelompok ke kelompok baku jenis itu (struktur satgas beda tiap jenis).
+  useEffect(() => {
+    let dibatalkan = false
+    setMemuatPreset(true)
+    ambilPresetJenisKegiatan(jenisKegiatan)
+      .then((p) => {
+        if (dibatalkan) return
+        setPreset(p)
+        setKelompok((p?.kelompokBaku ?? []).map((k) => ({ ...k, personel: [] })))
+        setKelompokAktifIdx(0)
+        setBentrokPerNrp({})
+        setTampilkanKonfirmasiBentrok(false)
+        setDurasiJam(p?.perkiraanJam != null ? String(p.perkiraanJam) : '')
+      })
+      .catch(() => {
+        if (!dibatalkan) setPreset(null)
+      })
+      .finally(() => {
+        if (!dibatalkan) setMemuatPreset(false)
+      })
+    return () => {
+      dibatalkan = true
+    }
+  }, [jenisKegiatan])
 
   useEffect(() => {
     let dibatalkan = false
@@ -211,7 +250,7 @@ export default function BuatSprin() {
           tanggalMulai,
           tanggalSelesai,
           jamApel,
-          durasiJam: preset?.perkiraanJam,
+          durasiJam: durasiJam ? Number(durasiJam) : (preset?.perkiraanJam ?? undefined),
           sifat: kelompokTujuan.sifat === 'pengendali' ? 'PENGENDALI' : 'PELAKSANA',
         },
         riwayat,
@@ -253,14 +292,19 @@ export default function BuatSprin() {
 
   const butirUntuk = useMemo(() => {
     if (!preset) return null
-    return bangunButirUntuk(preset, { perihal, tanggalMulai, jamApel, apelDipimpinOleh })
-  }, [preset, perihal, tanggalMulai, jamApel, apelDipimpinOleh])
+    return bangunButirUntuk(preset, { perihal, tanggalMulai, tanggalSelesai, jamApel, apelDipimpinOleh })
+  }, [preset, perihal, tanggalMulai, tanggalSelesai, jamApel, apelDipimpinOleh])
 
   const nomorLengkap = nomorAgendaValid && preset
     ? `SPRIN/${nomorAgenda.trim()}/${romawiBulan(tanggalMulai)}/${preset.kodeKlasifikasi}/${tahunSprin}`
     : null
 
   const tanggalTerbalik = Boolean(tanggalMulai && tanggalSelesai && tanggalSelesai < tanggalMulai)
+
+  // BR-06: jenis operasi (wajib_isi_durasi_manual) tidak punya durasi baku,
+  // jadi durasi wajib diisi manual (angka > 0) sebelum bisa diajukan.
+  const durasiManualTerpenuhi =
+    !preset?.wajibDurasiManual || (/^\d+$/.test(durasiJam.trim()) && Number(durasiJam) > 0)
 
   // Draf boleh disimpan tanpa nomor agenda (BR-17) dan tanpa personel -- yang
   // wajib cuma perihal, supaya draf punya identitas yang bisa dikenali kembali.
@@ -274,7 +318,8 @@ export default function BuatSprin() {
       lokasi.trim() &&
       totalPersonel > 0 &&
       preset &&
-      !tanggalTerbalik,
+      !tanggalTerbalik &&
+      durasiManualTerpenuhi,
   )
 
   function handleKlikSimpan() {
@@ -300,6 +345,7 @@ export default function BuatSprin() {
         tanggalMulai,
         tanggalSelesai,
         jamApel,
+        durasiJam: durasiJam ? Number(durasiJam) : preset.perkiraanJam ?? null,
         lokasi,
         kelompok,
         butirUntuk,
@@ -404,14 +450,28 @@ export default function BuatSprin() {
                 value={jenisKegiatan}
                 onChange={(e) => setJenisKegiatan(e.target.value)}
               >
-                {JENIS_KEGIATAN_OPTIONS.map((opt) => (
-                  <option key={opt}>{opt}</option>
-                ))}
+                {['Operasi', 'Pengamanan', 'Lainnya'].map((rumpun) => {
+                  const dalamRumpun = jenisOptions.filter((o) => o.rumpun === rumpun)
+                  if (dalamRumpun.length === 0) return null
+                  return (
+                    <optgroup key={rumpun} label={rumpun}>
+                      {dalamRumpun.map((o) => (
+                        <option key={o.nama} value={o.nama}>
+                          {o.nama} ({o.kode})
+                        </option>
+                      ))}
+                    </optgroup>
+                  )
+                })}
               </select>
               <div className="mt-1.5 text-xs" style={{ color: '#67788C' }}>
-                {preset
-                  ? `Kode ${preset.kodeKlasifikasi} · perkiraan ${preset.perkiraanJam} jam · diperiksa bentrok · disusun dari ${preset.sumberContoh} contoh`
-                  : 'Data kelompok & dasar hukum untuk jenis ini menyusul di tahap sambungkan data asli.'}
+                {memuatPreset
+                  ? 'Memuat data jenis kegiatan…'
+                  : preset
+                    ? `Kode ${preset.kodeKlasifikasi} · ${
+                        preset.wajibDurasiManual ? 'durasi diisi manual' : `perkiraan ${preset.perkiraanJam} jam`
+                      } · ${preset.kelompokBaku.length} kelompok baku · diperiksa bentrok`
+                    : 'Data jenis kegiatan ini belum tersedia.'}
               </div>
             </div>
           </div>
@@ -488,6 +548,25 @@ export default function BuatSprin() {
                   />
                 </Field>
               </div>
+
+              {preset?.wajibDurasiManual && (
+                <div className="rounded p-3" style={{ backgroundColor: '#FDF6E3', border: '1px solid #E8D9AE' }}>
+                  <Field label="Durasi operasi (jam)" required>
+                    <input
+                      type="number"
+                      min="1"
+                      placeholder="mis. 240"
+                      className="w-full rounded px-3 py-2 text-sm outline-none focus:ring-2"
+                      style={inputStyle}
+                      value={durasiJam}
+                      onChange={(e) => setDurasiJam(e.target.value)}
+                    />
+                  </Field>
+                  <div className="mt-1 text-xs" style={{ color: '#8A6100' }}>
+                    Jenis operasi ini tidak punya durasi baku (BR-06) — wajib diisi manual sebelum bisa diajukan.
+                  </div>
+                </div>
+              )}
 
               {preset?.dasarHukumRujukanDiperlukan && (
                 <div className="space-y-3" style={{ borderTop: '1px solid #DDE3EA', paddingTop: 14 }}>
