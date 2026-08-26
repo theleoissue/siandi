@@ -3,7 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom'
 import { renderAsync } from 'docx-preview'
 import { IconCheck } from '../components/icons'
 import { useSprinStore, STATUS_BADGE_STYLE } from '../lib/sprinContext'
-import { buatBlobSuratDocx, bisaDicetakSurat } from '../features/export/suratDocx'
+import { buatBlobSuratDocx } from '../features/export/suratDocx'
 import { buatBlobLampiranXlsx } from '../features/export/lampiranXlsx'
 import { unduhBlob, namaFileAman } from '../features/export/downloadBlob'
 import { cariPersonelDb } from '../lib/personelApi'
@@ -236,6 +236,10 @@ export default function SprinDetail({ peranSaya }) {
   }
 
   const bisaMemutuskan = peranSaya === 'KABAG_OPS' && sprin.status === 'Menunggu Persetujuan'
+  // Bisa dipratinjau/cetak kalau ada isinya: entah detail surat lengkap
+  // (draf/terbit yang diisi via SIANDI) atau punya daftar personel (mis. Sprin
+  // arsip yang lampirannya lengkap meski isi suratnya belum diambil dari sumber).
+  const adaIsiUntukDicetak = sprin.detailLengkap || sprin.jumlahPersonel > 0
 
   async function handleSetujui() {
     setMemproses(true)
@@ -326,17 +330,21 @@ export default function SprinDetail({ peranSaya }) {
               {sprin.status}
             </span>
           </div>
-          {sprin.status === 'Terbit' && (
+          {adaIsiUntukDicetak && (
             <div className="mt-4 flex flex-wrap gap-2">
               <button
                 type="button"
                 onClick={bukaPratinjau}
-                disabled={!bisaDicetakSurat(sprin) || Boolean(mengunduh)}
-                title={!bisaDicetakSurat(sprin) ? 'Isi lengkap surat ini belum tersedia (Sprin arsip lama)' : undefined}
+                disabled={Boolean(mengunduh)}
                 className="inline-flex items-center gap-2 rounded px-3 py-1.5 text-xs font-semibold disabled:opacity-40"
                 style={{ backgroundColor: '#C8A24A', color: '#0E1B2C' }}
               >
-                <IconDownload size={14} /> {mengunduh === 'pratinjau' ? 'Menyiapkan…' : 'Pratinjau & cetak (.docx)'}
+                <IconDownload size={14} />{' '}
+                {mengunduh === 'pratinjau'
+                  ? 'Menyiapkan…'
+                  : sprin.status === 'Terbit'
+                    ? 'Pratinjau & cetak (.docx)'
+                    : 'Pratinjau (draf)'}
               </button>
               <button
                 type="button"
@@ -347,6 +355,11 @@ export default function SprinDetail({ peranSaya }) {
               >
                 <IconDownload size={14} /> {mengunduh === 'lampiran' ? 'Membuat…' : 'Unduh lampiran (.xlsx)'}
               </button>
+              {sprin.status !== 'Terbit' && (
+                <span className="self-center text-xs" style={{ color: '#8FA3BB' }}>
+                  Pratinjau draf — belum sah sampai diterbitkan.
+                </span>
+              )}
             </div>
           )}
           {pesanError && !bisaMemutuskan && (
