@@ -2,6 +2,7 @@ import {
   Document,
   Paragraph,
   TextRun,
+  ImageRun,
   Table,
   TableRow,
   TableCell,
@@ -13,13 +14,23 @@ import {
   Packer,
 } from 'docx'
 import { namaHari, tanggalPanjang } from '../../lib/format'
+import { TRIBRATA_JPEG_BASE64 } from './tribrataLogo'
 
-// Struktur dan susunan diambil persis dari fungsi cetak .docx yang sudah ada di
-// SIANDI_Mockup_v3.html (fungsi Yj) -- dibangun ulang dengan nama jelas memakai
-// API asli library `docx`, bukan hasil bundel minifikasi.
+// Tata letak mengikuti Surat Perintah resmi Polres Cimahi (file "DEPAN/DPN
+// SPRIN ....docx") -- kop berlambang Tribrata, konsideran Pertimbangan/Dasar/
+// Diperintahkan/Untuk, blok tanda tangan DIKOSONGKAN untuk disahkan lewat
+// tanda tangan basah atau TTE tersertifikasi (bukan cap/ttd tempel otomatis).
 
 const FONT = 'Arial'
 const UKURAN = 22 // half-points = 11pt
+
+// Ubah base64 lambang jadi Uint8Array untuk ImageRun (di browser tak ada Buffer).
+function base64KeBytes(b64) {
+  const biner = atob(b64)
+  const arr = new Uint8Array(biner.length)
+  for (let i = 0; i < biner.length; i += 1) arr[i] = biner.charCodeAt(i)
+  return arr
+}
 
 // Penandatangan resmi belum punya tempat penyimpanan di skema (surat_perintah
 // tidak punya kolom penandatangan/pemimpin_apel yang benar-benar terisi) --
@@ -94,12 +105,23 @@ export function bisaDicetakSurat(sprin) {
 
 export async function buatBlobSuratDocx(sprin, penandatangan = PENANDATANGAN_DEFAULT) {
   const kop = [
+    new Paragraph({
+      alignment: AlignmentType.CENTER,
+      spacing: { after: 40 },
+      children: [
+        new ImageRun({
+          type: 'jpg',
+          data: base64KeBytes(TRIBRATA_JPEG_BASE64),
+          transformation: { width: 62, height: 62 },
+        }),
+      ],
+    }),
     paragraf([teks('KEPOLISIAN NEGARA REPUBLIK INDONESIA', { size: 20 })], { alignment: AlignmentType.CENTER }),
     paragraf([teks('DAERAH JAWA BARAT', { size: 20 })], { alignment: AlignmentType.CENTER }),
     paragraf([teks('RESOR CIMAHI', { size: 20, underline: { type: UnderlineType.SINGLE } })], {
       alignment: AlignmentType.CENTER,
     }),
-    ...kosong(2),
+    ...kosong(1),
     paragraf([teks('SURAT PERINTAH', { underline: { type: UnderlineType.SINGLE } })], { alignment: AlignmentType.CENTER }),
     paragraf([teks(`Nomor : ${sprin.nomorLengkap}`)], { alignment: AlignmentType.CENTER }),
     ...kosong(1),
@@ -167,7 +189,9 @@ export async function buatBlobSuratDocx(sprin, penandatangan = PENANDATANGAN_DEF
     styles: { default: { document: { run: { font: FONT, size: UKURAN } } } },
     sections: [
       {
-        properties: { page: { size: { width: 11906, height: 16838 }, margin: { top: 1000, bottom: 1000, left: 1300, right: 1000 } } },
+        // Margin mengikuti dokumen Sprin asli (twips): atas/kanan ~709, kiri ~799.
+        // Bawah diberi ruang wajar (real memakai 0, terlalu mepet untuk cetak).
+        properties: { page: { size: { width: 11906, height: 16838 }, margin: { top: 720, bottom: 720, left: 800, right: 709 } } },
         children: [
           ...kop,
           isi,
