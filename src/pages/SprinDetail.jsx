@@ -1,11 +1,59 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
+import { renderAsync } from 'docx-preview'
 import { IconCheck } from '../components/icons'
 import { useSprinStore, STATUS_BADGE_STYLE } from '../lib/sprinContext'
 import { buatBlobSuratDocx, bisaDicetakSurat } from '../features/export/suratDocx'
 import { buatBlobLampiranXlsx } from '../features/export/lampiranXlsx'
 import { unduhBlob, namaFileAman } from '../features/export/downloadBlob'
 import { cariPersonelDb } from '../lib/personelApi'
+
+// Modal pratinjau: merender blob .docx yang sama persis dengan yang diunduh
+// (surat + lampiran jadi satu), lalu tombol unduh di dalamnya.
+function ModalPratinjau({ blob, namaFile, onTutup, onUnduh }) {
+  const wadahRef = useRef(null)
+  const [merender, setMerender] = useState(true)
+
+  useEffect(() => {
+    let batal = false
+    setMerender(true)
+    if (wadahRef.current) wadahRef.current.innerHTML = ''
+    renderAsync(blob, wadahRef.current, null, { className: 'docx', inWrapper: true })
+      .catch(() => {})
+      .finally(() => {
+        if (!batal) setMerender(false)
+      })
+    return () => {
+      batal = true
+    }
+  }, [blob])
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex flex-col"
+      style={{ backgroundColor: 'rgba(14,27,44,0.75)' }}
+      onClick={onTutup}
+    >
+      <div className="flex items-center justify-between gap-3 px-4 py-3" style={{ backgroundColor: '#0E1B2C' }} onClick={(e) => e.stopPropagation()}>
+        <div className="text-sm font-semibold" style={{ color: '#FFFFFF' }}>
+          Pratinjau surat + lampiran
+        </div>
+        <div className="flex gap-2">
+          <button type="button" onClick={onUnduh} className="rounded px-3 py-1.5 text-xs font-semibold" style={{ backgroundColor: '#C8A24A', color: '#0E1B2C' }}>
+            Unduh .docx
+          </button>
+          <button type="button" onClick={onTutup} className="rounded px-3 py-1.5 text-xs font-semibold" style={{ backgroundColor: '#FFFFFF', color: '#0E1B2C' }}>
+            Tutup
+          </button>
+        </div>
+      </div>
+      <div className="flex-1 overflow-auto p-4" onClick={(e) => e.stopPropagation()}>
+        {merender && <div className="text-center text-sm" style={{ color: '#FFFFFF' }}>Merender pratinjau…</div>}
+        <div ref={wadahRef} style={{ display: 'flex', justifyContent: 'center' }} />
+      </div>
+    </div>
+  )
+}
 
 const PERAN_BOLEH_UBAH_PENANDATANGAN = ['KASUBBAG_BINOPS', 'PAURMIN', 'STAF_ADMIN']
 
@@ -167,6 +215,7 @@ export default function SprinDetail({ peranSaya }) {
   const [memproses, setMemproses] = useState(false)
   const [pesanError, setPesanError] = useState('')
   const [mengunduh, setMengunduh] = useState('')
+  const [pratinjauBlob, setPratinjauBlob] = useState(null)
 
   const sprin = cariSprin(id)
   if (!sprin) {
@@ -213,16 +262,21 @@ export default function SprinDetail({ peranSaya }) {
     }
   }
 
-  async function handleUnduhSurat() {
-    setMengunduh('surat')
+  async function bukaPratinjau() {
+    setMengunduh('pratinjau')
+    setPesanError('')
     try {
       const blob = await buatBlobSuratDocx(sprin, sprin.penandatanganDetail)
-      unduhBlob(blob, `${namaFileAman(sprin.nomorLengkap)}.docx`)
+      setPratinjauBlob(blob)
     } catch (err) {
-      setPesanError(err.message ?? 'Gagal membuat berkas surat.')
+      setPesanError(err.message ?? 'Gagal membuat pratinjau.')
     } finally {
       setMengunduh('')
     }
+  }
+
+  function unduhPratinjau() {
+    if (pratinjauBlob) unduhBlob(pratinjauBlob, `${namaFileAman(sprin.nomorLengkap)}.docx`)
   }
 
   function handleUnduhLampiran() {
@@ -276,13 +330,13 @@ export default function SprinDetail({ peranSaya }) {
             <div className="mt-4 flex flex-wrap gap-2">
               <button
                 type="button"
-                onClick={handleUnduhSurat}
+                onClick={bukaPratinjau}
                 disabled={!bisaDicetakSurat(sprin) || Boolean(mengunduh)}
                 title={!bisaDicetakSurat(sprin) ? 'Isi lengkap surat ini belum tersedia (Sprin arsip lama)' : undefined}
                 className="inline-flex items-center gap-2 rounded px-3 py-1.5 text-xs font-semibold disabled:opacity-40"
                 style={{ backgroundColor: '#C8A24A', color: '#0E1B2C' }}
               >
-                <IconDownload size={14} /> {mengunduh === 'surat' ? 'Membuat…' : 'Unduh surat (.docx)'}
+                <IconDownload size={14} /> {mengunduh === 'pratinjau' ? 'Menyiapkan…' : 'Pratinjau & cetak (.docx)'}
               </button>
               <button
                 type="button"
@@ -454,6 +508,15 @@ export default function SprinDetail({ peranSaya }) {
           </div>
         )}
       </div>
+
+      {pratinjauBlob && (
+        <ModalPratinjau
+          blob={pratinjauBlob}
+          namaFile={namaFileAman(sprin.nomorLengkap)}
+          onTutup={() => setPratinjauBlob(null)}
+          onUnduh={unduhPratinjau}
+        />
+      )}
     </main>
   )
 }
