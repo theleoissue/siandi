@@ -158,11 +158,40 @@ function bangunSectionLampiran(sprin, penandatangan) {
 
   const kanan = (t, o = {}) => paragraf([teks(t, o)], { alignment: AlignmentType.RIGHT })
 
+  // Kepala lampiran meniru dokumen LAMP asli: kop instansi (teks, bukan gambar
+  // lambang) di kiri sejajar dengan blok "LAMPIRAN SPRIN..." di kanan --
+  // disusun sebagai tabel 2 kolom tanpa garis.
+  const kepalaKiriKanan = new Table({
+    width: { size: 10430, type: WidthType.DXA },
+    columnWidths: [5215, 5215],
+    borders: TANPA_GARIS,
+    rows: [
+      new TableRow({
+        children: [
+          sel(
+            [
+              paragraf([teks('KEPOLISIAN NEGARA REPUBLIK INDONESIA', { size: 20 })], { alignment: AlignmentType.CENTER, spacing: { after: 0 } }),
+              paragraf([teks('DAERAH JAWA BARAT', { size: 20 })], { alignment: AlignmentType.CENTER, spacing: { after: 0 } }),
+              paragraf([teks('RESOR CIMAHI', { size: 20, underline: { type: UnderlineType.SINGLE } })], { alignment: AlignmentType.CENTER }),
+            ],
+            5215,
+          ),
+          sel(
+            [
+              kanan('LAMPIRAN SURAT PERINTAH'),
+              kanan('KAPOLRES CIMAHI'),
+              kanan(`NOMOR  : ${sprin.nomorLengkap}`),
+              kanan(`TANGGAL  : ${tanggalPanjang(sprin.tanggalMulai).toUpperCase()}`),
+            ],
+            5215,
+          ),
+        ],
+      }),
+    ],
+  })
+
   const kepala = [
-    kanan('LAMPIRAN SURAT PERINTAH'),
-    kanan('KAPOLRES CIMAHI'),
-    kanan(`NOMOR  : ${sprin.nomorLengkap}`),
-    kanan(`TANGGAL  : ${tanggalPanjang(sprin.tanggalMulai).toUpperCase()}`),
+    kepalaKiriKanan,
     ...kosong(1),
     paragraf([teks(`DAFTAR PERSONEL ${(sprin.perihal || '').toUpperCase()}`, { bold: true })], { alignment: AlignmentType.CENTER }),
     paragraf([teks(labelWaktu, { bold: true })], { alignment: AlignmentType.CENTER }),
