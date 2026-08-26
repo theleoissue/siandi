@@ -48,6 +48,10 @@ const TANPA_GARIS = {
   bottom: { style: BorderStyle.NONE },
   left: { style: BorderStyle.NONE },
   right: { style: BorderStyle.NONE },
+  // Wajib: tanpa ini, border antar-sel bagian dalam tabel muncul sebagai garis
+  // (surat jadi kelihatan seperti formulir berkotak, bukan surat bersih).
+  insideHorizontal: { style: BorderStyle.NONE },
+  insideVertical: { style: BorderStyle.NONE },
 }
 
 function teks(text, opts = {}) {
@@ -66,20 +70,20 @@ function sel(children, lebar) {
   return new TableCell({
     borders: TANPA_GARIS,
     width: { size: lebar, type: WidthType.DXA },
-    margins: { top: 0, bottom: 40, left: 0, right: 80 },
+    margins: { top: 0, bottom: 30, left: 0, right: 80 },
     children,
   })
 }
 
 function barisBerlabel(label, isi) {
   return new TableRow({
-    children: [sel([paragraf([teks(label)])], 1500), sel([paragraf([teks(label ? ':' : '')])], 300), sel(isi, 7400)],
+    children: [sel([paragraf([teks(label)])], 1700), sel([paragraf([teks(label ? ':' : '')])], 300), sel(isi, 7100)],
   })
 }
 
 function barisKosong() {
   return new TableRow({
-    children: [sel([paragraf([teks('')])], 1500), sel([paragraf([teks('')])], 300), sel([paragraf([teks('')])], 7400)],
+    children: [sel([paragraf([teks('')])], 1700), sel([paragraf([teks('')])], 300), sel([paragraf([teks('')])], 7100)],
   })
 }
 
@@ -89,7 +93,7 @@ function daftarBernomor(arr) {
       tabStops: [{ type: TabStopType.LEFT, position: 420 }],
       indent: { left: 420, hanging: 420 },
       alignment: AlignmentType.JUSTIFIED,
-      spacing: { after: 60 },
+      spacing: { after: 60, line: 240, lineRule: 'auto' },
     }),
   )
 }
@@ -209,7 +213,10 @@ function bangunSectionLampiran(sprin, penandatangan) {
   return {
     properties: {
       page: {
-        size: { width: 16838, height: 11906, orientation: PageOrientation.LANDSCAPE },
+        // Beri dimensi PORTRAIT + orientation LANDSCAPE; docx v9 yang menukar
+        // lebar/tinggi. Kalau diberi dimensi landscape sekaligus orientation,
+        // ter-swap dua kali dan malah balik portrait (tabel lebar terpotong).
+        size: { orientation: PageOrientation.LANDSCAPE, width: 11906, height: 16838 },
         margin: { top: 720, bottom: 720, left: 720, right: 720 },
       },
     },
@@ -230,20 +237,22 @@ export async function buatBlobSuratDocx(sprin, penandatangan = PENANDATANGAN_DEF
         }),
       ],
     }),
-    paragraf([teks('KEPOLISIAN NEGARA REPUBLIK INDONESIA', { size: 20 })], { alignment: AlignmentType.CENTER }),
-    paragraf([teks('DAERAH JAWA BARAT', { size: 20 })], { alignment: AlignmentType.CENTER }),
-    paragraf([teks('RESOR CIMAHI', { size: 20, underline: { type: UnderlineType.SINGLE } })], {
+    paragraf([teks('KEPOLISIAN NEGARA REPUBLIK INDONESIA', { size: 22 })], { alignment: AlignmentType.CENTER, spacing: { after: 0 } }),
+    paragraf([teks('DAERAH JAWA BARAT', { size: 22 })], { alignment: AlignmentType.CENTER, spacing: { after: 0 } }),
+    paragraf([teks('RESOR CIMAHI', { size: 22, bold: true, underline: { type: UnderlineType.SINGLE } })], {
       alignment: AlignmentType.CENTER,
     }),
     ...kosong(1),
-    paragraf([teks('SURAT PERINTAH', { underline: { type: UnderlineType.SINGLE } })], { alignment: AlignmentType.CENTER }),
+    paragraf([teks('SURAT PERINTAH', { bold: true, characterSpacing: 60, underline: { type: UnderlineType.SINGLE } })], {
+      alignment: AlignmentType.CENTER,
+    }),
     paragraf([teks(`Nomor : ${sprin.nomorLengkap}`)], { alignment: AlignmentType.CENTER }),
     ...kosong(1),
   ]
 
   const isi = new Table({
-    width: { size: 9200, type: WidthType.DXA },
-    columnWidths: [1500, 300, 7400],
+    width: { size: 9100, type: WidthType.DXA },
+    columnWidths: [1700, 300, 7100],
     borders: TANPA_GARIS,
     rows: [
       barisBerlabel('Pertimbangan', [paragraf([teks(sprin.pertimbangan || '—')], { alignment: AlignmentType.JUSTIFIED })]),
@@ -252,9 +261,9 @@ export async function buatBlobSuratDocx(sprin, penandatangan = PENANDATANGAN_DEF
       barisKosong(),
       new TableRow({
         children: [
-          sel([paragraf([teks('')])], 1500),
+          sel([paragraf([teks('')])], 1700),
           sel([paragraf([teks('')])], 300),
-          sel([paragraf([teks('DIPERINTAHKAN')], { alignment: AlignmentType.CENTER })], 7400),
+          sel([paragraf([teks('DIPERINTAHKAN', { bold: true })], { alignment: AlignmentType.CENTER })], 7100),
         ],
       }),
       barisKosong(),
@@ -288,7 +297,7 @@ export async function buatBlobSuratDocx(sprin, penandatangan = PENANDATANGAN_DEF
               }),
               paragraf([teks('KEPALA KEPOLISIAN RESOR CIMAHI POLDA JABAR')], { alignment: AlignmentType.CENTER }),
               ...kosong(4),
-              paragraf([teks(String(penandatangan.nama).toUpperCase(), { underline: { type: UnderlineType.SINGLE } })], {
+              paragraf([teks(String(penandatangan.nama).toUpperCase(), { bold: true, underline: { type: UnderlineType.SINGLE } })], {
                 alignment: AlignmentType.CENTER,
               }),
               paragraf([teks(`${penandatangan.pangkat} NRP ${penandatangan.nrp}`)], { alignment: AlignmentType.CENTER }),
@@ -302,7 +311,7 @@ export async function buatBlobSuratDocx(sprin, penandatangan = PENANDATANGAN_DEF
   const sectionSurat = {
     // Margin mengikuti dokumen Sprin asli (twips): atas/kanan ~709, kiri ~799.
     // Bawah diberi ruang wajar (real memakai 0, terlalu mepet untuk cetak).
-    properties: { page: { size: { width: 11906, height: 16838 }, margin: { top: 720, bottom: 720, left: 800, right: 709 } } },
+    properties: { page: { size: { width: 11906, height: 16838 }, margin: { top: 720, bottom: 720, left: 1134, right: 851 } } },
     children: [
       ...kop,
       isi,
@@ -323,7 +332,7 @@ export async function buatBlobSuratDocx(sprin, penandatangan = PENANDATANGAN_DEF
   const sections = adaPersonel ? [sectionSurat, bangunSectionLampiran(sprin, penandatangan)] : [sectionSurat]
 
   const dokumen = new Document({
-    styles: { default: { document: { run: { font: FONT, size: UKURAN } } } },
+    styles: { default: { document: { run: { font: FONT, size: UKURAN }, paragraph: { spacing: { line: 240, lineRule: 'auto', after: 0 } } } } },
     sections,
   })
 
