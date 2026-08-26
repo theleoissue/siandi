@@ -225,25 +225,22 @@ function bangunSectionLampiran(sprin, penandatangan) {
 }
 
 export async function buatBlobSuratDocx(sprin, penandatangan = PENANDATANGAN_DEFAULT) {
+  // Susunan kop mengikuti Surat Perintah Polres Cimahi asli: kode klasifikasi
+  // di pojok kanan atas, lalu 3 baris nama instansi (rata tengah, RESOR CIMAHI
+  // digaris bawah), lambang Tribrata di tengah bawahnya, baru judul + nomor.
   const kop = [
-    new Paragraph({
-      alignment: AlignmentType.CENTER,
-      spacing: { after: 40 },
-      children: [
-        new ImageRun({
-          type: 'jpg',
-          data: base64KeBytes(TRIBRATA_JPEG_BASE64),
-          transformation: { width: 62, height: 62 },
-        }),
-      ],
-    }),
+    paragraf([teks(sprin.kodeKlasifikasi || '', { size: 20 })], { alignment: AlignmentType.RIGHT, spacing: { after: 0 } }),
     paragraf([teks('KEPOLISIAN NEGARA REPUBLIK INDONESIA', { size: 22 })], { alignment: AlignmentType.CENTER, spacing: { after: 0 } }),
     paragraf([teks('DAERAH JAWA BARAT', { size: 22 })], { alignment: AlignmentType.CENTER, spacing: { after: 0 } }),
-    paragraf([teks('RESOR CIMAHI', { size: 22, bold: true, underline: { type: UnderlineType.SINGLE } })], {
+    paragraf([teks('RESOR CIMAHI', { size: 22, underline: { type: UnderlineType.SINGLE } })], { alignment: AlignmentType.CENTER }),
+    new Paragraph({
       alignment: AlignmentType.CENTER,
+      spacing: { before: 40, after: 20 },
+      children: [
+        new ImageRun({ type: 'jpg', data: base64KeBytes(TRIBRATA_JPEG_BASE64), transformation: { width: 60, height: 60 } }),
+      ],
     }),
-    ...kosong(1),
-    paragraf([teks('SURAT PERINTAH', { bold: true, characterSpacing: 60, underline: { type: UnderlineType.SINGLE } })], {
+    paragraf([teks('SURAT PERINTAH', { characterSpacing: 40, underline: { type: UnderlineType.SINGLE } })], {
       alignment: AlignmentType.CENTER,
     }),
     paragraf([teks(`Nomor : ${sprin.nomorLengkap}`)], { alignment: AlignmentType.CENTER }),

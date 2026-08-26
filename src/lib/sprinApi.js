@@ -1,5 +1,6 @@
 import { supabase } from './supabase'
 import { labelWaktu } from './format'
+import { bangunButirUntuk } from './jenisKegiatanPreset'
 
 // Lapisan data asli untuk SprinStore -- menggantikan data contoh in-memory.
 // Field pada objek yang dikembalikan sengaja dipertahankan sama persis dengan
@@ -53,14 +54,52 @@ function petaSprin(row) {
     .filter(Boolean)
   const dasar = [...dasarBaku, ...dasarRujukan]
 
+  // Sprin arsip historis tidak menyimpan pertimbangan/dasar/untuk (cuma lampiran
+  // yang diimpor). Kalau begitu, susun ulang isi surat dari data BAKU jenis
+  // kegiatannya (dasar hukum baku + butir untuk baku) supaya surat tidak kosong.
+  // Ini rekonstruksi dari template -- bukan teks asli persis -- ditandai lewat
+  // detailRekonstruksi agar UI bisa memberi keterangan.
+  const jk = row.jenis_kegiatan
+  const punyaDetailAsli = Boolean(row.pertimbangan)
+  const dasarDariJenis = (jk?.jenis_kegiatan_dasar_hukum ?? [])
+    .slice()
+    .sort((a, b) => a.urutan - b.urutan)
+    .map((d) => d.dasar_hukum_baku?.teks)
+    .filter(Boolean)
+  const untukBakuJenis = (jk?.jenis_kegiatan_untuk_baku ?? [])
+    .slice()
+    .sort((a, b) => a.urutan - b.urutan)
+    .map((u) => u.teks)
+
+  const perihalKecil = row.perihal
+    ? `${row.perihal.charAt(0).toLowerCase()}${row.perihal.slice(1)}`
+    : 'kegiatan'
+  const pertimbanganFinal =
+    row.pertimbangan ||
+    (row.perihal ? `bahwa dalam rangka ${perihalKecil}, maka dipandang perlu mengeluarkan surat perintah ini.` : undefined)
+  const dasarFinal = dasar.length > 0 ? dasar : dasarDariJenis
+  let untukFinal = row.butir_untuk ?? undefined
+  if (!untukFinal && untukBakuJenis.length > 0) {
+    untukFinal = bangunButirUntuk(
+      { untukBaku: untukBakuJenis, wajibDurasiManual: jk?.wajib_isi_durasi_manual },
+      {
+        perihal: row.perihal,
+        tanggalMulai: row.tanggal_mulai,
+        tanggalSelesai: row.tanggal_selesai,
+        jamApel: row.jam_apel ? row.jam_apel.slice(0, 5) : '08:00',
+        apelDipimpinOleh: 'KABAG OPS',
+      },
+    )
+  }
+
   return {
     id: row.id,
     nomorLengkap: row.nomor_lengkap,
     perihal: row.perihal,
-    pertimbangan: row.pertimbangan,
+    pertimbangan: pertimbanganFinal,
     lokasi: row.lokasi,
-    dasar: dasar.length > 0 ? dasar : undefined,
-    untuk: row.butir_untuk ?? undefined,
+    dasar: dasarFinal.length > 0 ? dasarFinal : undefined,
+    untuk: untukFinal,
     jenisKegiatanNama: row.jenis_kegiatan?.nama,
     kodeKlasifikasi: row.jenis_kegiatan?.kode_klasifikasi,
     tanggalMulai: row.tanggal_mulai,
@@ -81,18 +120,21 @@ function petaSprin(row) {
     penandatanganDetail: row.penandatangan
       ? { nama: row.penandatangan.nama, pangkat: row.penandatangan.pangkat, nrp: row.penandatangan.nrp }
       : undefined,
-    // Sprin arsip historis tidak punya pertimbangan/dasar/untuk tersimpan (belum
-    // diambil dari sumber saat migrasi) -- detailLengkap jadi penanda untuk itu.
-    // "dasar" dan "untuk" sengaja tidak diisi di sini karena belum ada kolom/tabel
-    // untuk menyimpannya (lihat catatan BR-03 di jenisKegiatanPreset.js).
-    detailLengkap: Boolean(row.pertimbangan),
+    // detailLengkap: ada isi surat yang bisa dicetak (asli maupun rekonstruksi baku).
+    detailLengkap: Boolean(pertimbanganFinal),
+    // detailRekonstruksi: isinya disusun dari baku, bukan teks asli Sprin arsip.
+    detailRekonstruksi: !punyaDetailAsli && Boolean(pertimbanganFinal),
   }
 }
 
 const SELECT_SPRIN_LENGKAP = `
   id, nomor_lengkap, perihal, pertimbangan, lokasi, tanggal_mulai, tanggal_selesai,
   jam_apel, status, catatan_pemeriksaan, butir_untuk, penandatangan_id,
-  jenis_kegiatan:jenis_kegiatan_id ( nama, kode_klasifikasi ),
+  jenis_kegiatan:jenis_kegiatan_id (
+    nama, kode_klasifikasi, wajib_isi_durasi_manual,
+    jenis_kegiatan_dasar_hukum ( urutan, dasar_hukum_baku ( teks ) ),
+    jenis_kegiatan_untuk_baku ( urutan, teks )
+  ),
   penandatangan:penandatangan_id ( nama, pangkat, nrp ),
   sprin_dasar_hukum_baku ( urutan, dasar_hukum_baku ( teks ) ),
   dasar_hukum_rujukan ( urutan, jenis_dokumen, perihal ),

@@ -398,7 +398,14 @@ export default function SprinDetail({ peranSaya }) {
 
         {tab === 'isi' ? (
           sprin.detailLengkap ? (
-            <div className="grid gap-6 p-6 md:grid-cols-2">
+            <div className="p-6">
+              {sprin.detailRekonstruksi && (
+                <div className="mb-4 rounded px-3 py-2 text-xs" style={{ backgroundColor: '#FDF6E3', color: '#8A6100' }}>
+                  Isi surat (dasar hukum & butir untuk) disusun otomatis dari data baku jenis kegiatan — bukan teks
+                  asli Sprin arsip ini.
+                </div>
+              )}
+              <div className="grid gap-6 md:grid-cols-2">
               <div className="space-y-3 text-sm">
                 <MetaItem label="Jenis kegiatan" value={sprin.jenisKegiatanNama} />
                 <MetaItem label="Kode klasifikasi" value={sprin.kodeKlasifikasi} />
@@ -418,6 +425,7 @@ export default function SprinDetail({ peranSaya }) {
               <div className="space-y-4">
                 <DaftarButir judul="Dasar" butir={sprin.dasar} />
                 <DaftarButir judul="Untuk" butir={sprin.untuk} />
+              </div>
               </div>
             </div>
           ) : (
