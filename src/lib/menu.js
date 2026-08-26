@@ -25,6 +25,7 @@ export const MENU_BINOPS = [
   { key: 'daftar-sprin', label: 'Daftar Sprin', path: '/daftar-sprin' },
   { key: 'arsip', label: 'Arsip & Pencarian', path: '/arsip' },
   { key: 'riwayat', label: 'Riwayat Penugasan', path: '/riwayat' },
+  { key: 'jenis-kegiatan', label: 'Jenis Kegiatan', path: '/jenis-kegiatan' },
   { key: 'notifikasi', label: 'Notifikasi', path: '/notifikasi' },
 ]
 
