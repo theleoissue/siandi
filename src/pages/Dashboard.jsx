@@ -23,11 +23,9 @@ export default function Dashboard() {
   const statCards = useMemo(() => {
     const terbit = daftar.filter((s) => s.status === 'Terbit').length
     const menunggu = daftar.filter((s) => s.status === 'Menunggu Persetujuan').length
-    const barisPenugasan = daftar.reduce((acc, s) => acc + s.jumlahPersonel, 0)
     return [
       { label: 'Sprin terbit', value: String(terbit), color: '#1F7A4D' },
       { label: 'Menunggu persetujuan', value: String(menunggu), color: '#8A6100' },
-      { label: 'Baris penugasan', value: barisPenugasan.toLocaleString('id-ID'), color: '#0E1B2C' },
       { label: 'Personel terdata', value: PERSONEL_CONTOH.length.toLocaleString('id-ID'), color: '#0E1B2C' },
     ]
   }, [daftar])
@@ -45,7 +43,7 @@ export default function Dashboard() {
         </p>
       </div>
 
-      <div className="mb-5 grid grid-cols-2 gap-3 lg:grid-cols-4">
+      <div className="mb-5 grid grid-cols-2 gap-3 lg:grid-cols-3">
         {statCards.map((s) => (
           <div key={s.label} className="rounded-lg p-4" style={{ backgroundColor: '#FFFFFF', border: '1px solid #DDE3EA' }}>
             <div className="text-3xl" style={{ fontFamily: 'Georgia, "Times New Roman", serif', color: s.color }}>
