@@ -34,7 +34,20 @@ export async function ambilSemuaJenisKelola() {
   return hasil
 }
 
+// BR-06: setiap jenis kegiatan wajib punya salah satu -- perkiraan durasi baku
+// ATAU ditandai wajib diisi manual. Kombinasi "bukan wajib manual, tapi juga
+// tidak ada perkiraan jam" bikin field durasi tidak pernah bisa terisi sama
+// sekali di Buat Sprin (tidak wajib manual -> input tidak muncul; tidak ada
+// baku -> tidak ada nilai default). Divalidasi di sini, bukan cuma di UI form,
+// supaya tidak bisa lolos lewat panggilan API langsung juga.
+function validasiDurasi({ perkiraanJam, wajibDurasiManual }) {
+  if (!wajibDurasiManual && !perkiraanJam) {
+    throw new Error('Isi perkiraan durasi (jam), atau centang "durasi diisi manual" kalau jenis ini tidak punya durasi baku.')
+  }
+}
+
 export async function tambahJenisKegiatan({ nama, kode, perkiraanJam, wajibDurasiManual }) {
+  validasiDurasi({ perkiraanJam, wajibDurasiManual })
   const { data, error } = await supabase
     .from('jenis_kegiatan')
     .insert({
@@ -50,6 +63,7 @@ export async function tambahJenisKegiatan({ nama, kode, perkiraanJam, wajibDuras
 }
 
 export async function ubahJenisKegiatan(id, { nama, kode, perkiraanJam, wajibDurasiManual }) {
+  validasiDurasi({ perkiraanJam, wajibDurasiManual })
   const { error } = await supabase
     .from('jenis_kegiatan')
     .update({
