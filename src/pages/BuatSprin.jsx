@@ -607,7 +607,13 @@ export default function BuatSprin() {
                     Dasar
                   </div>
                   <ol className="space-y-1 text-xs">
-                    {[...preset.dasarHukumBaku, ...(dasarHukumRujukan.trim() ? [dasarHukumRujukan.trim()] : [])].map(
+                    {(() => {
+                      const baku = preset.dasarHukumBaku
+                      const rujukan = dasarHukumRujukan.trim() ? [dasarHukumRujukan.trim()] : []
+                      // Sama seperti sprinApi.js: butir baku terakhir (Rengiat/Kalender)
+                      // tetap paling akhir, rujukan disisipkan sebelum itu.
+                      return baku.length === 0 ? rujukan : [...baku.slice(0, -1), ...rujukan, baku[baku.length - 1]]
+                    })().map(
                       (teks, i) => (
                         <li key={i} className="flex gap-2">
                           <span style={{ color: '#67788C', fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Consolas, monospace' }}>

@@ -15,6 +15,14 @@ const LABEL_STATUS = {
   DIKEMBALIKAN: 'Dikembalikan',
 }
 
+// Sisipkan `tambahan` sebelum item terakhir `baku` -- dipakai supaya butir
+// baku terakhir (konvensi: rujukan tahunan Rengiat/Kalender) tetap paling
+// akhir walau ada dasar hukum tambahan yang diketik per-Sprin.
+function sisipkanSebelumButirTerakhir(baku, tambahan) {
+  if (baku.length === 0) return tambahan
+  return [...baku.slice(0, -1), ...tambahan, baku[baku.length - 1]]
+}
+
 function petaPersonel(sp) {
   const sumber = sp.pengguna ?? sp.personel_non_kuatpers
   return {
@@ -52,7 +60,11 @@ function petaSprin(row) {
     .sort((a, b) => a.urutan - b.urutan)
     .map((d) => d.perihal)
     .filter(Boolean)
-  const dasar = [...dasarBaku, ...dasarRujukan]
+  // Konvensi: butir baku terakhir per jenis kegiatan selalu "Rengiat.../Kalender
+  // Operasi..." (rujukan tahunan) dan harus tetap paling akhir walau ada dasar
+  // hukum rujukan tambahan -- disisipkan sebelum butir terakhir itu, bukan
+  // ditempel di belakangnya.
+  const dasar = sisipkanSebelumButirTerakhir(dasarBaku, dasarRujukan)
 
   // Sprin arsip historis tidak menyimpan pertimbangan/dasar/untuk (cuma lampiran
   // yang diimpor). Kalau begitu, susun ulang isi surat dari data BAKU jenis
