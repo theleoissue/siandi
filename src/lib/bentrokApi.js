@@ -73,7 +73,7 @@ export async function ambilRiwayatPenugasanNrp(nrp) {
     .select(`
       sprin_personel (
         sprin_kelompok ( sifat,
-          surat_perintah ( nomor_lengkap, perihal, tanggal_mulai, tanggal_selesai, jam_apel, status,
+          surat_perintah ( nomor_lengkap, perihal, tanggal_mulai, tanggal_selesai, jam_apel, status, durasi_jam,
             jenis_kegiatan ( perkiraan_durasi_jam ) )
         )
       )
@@ -94,7 +94,10 @@ export async function ambilRiwayatPenugasanNrp(nrp) {
         tanggalMulai: sp.tanggal_mulai,
         tanggalSelesai: sp.tanggal_selesai,
         jamApel: sp.jam_apel?.slice(0, 5) ?? null,
-        durasiJam: sp.jenis_kegiatan?.perkiraan_durasi_jam ?? null,
+        // durasi_jam (BR-06, per-Sprin -- termasuk yang diisi manual untuk jenis
+        // operasi) dulu, baru fallback ke perkiraan baku jenis kegiatan untuk
+        // Sprin lama yang dibuat sebelum kolom durasi_jam ada.
+        durasiJam: sp.durasi_jam ?? sp.jenis_kegiatan?.perkiraan_durasi_jam ?? null,
         sifat: row.sprin_kelompok.sifat,
       }
     })
