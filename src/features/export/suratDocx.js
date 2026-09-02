@@ -524,6 +524,7 @@ export async function buatBlobSuratDocx(sprin, penandatangan = PENANDATANGAN_DEF
         }
         const cellHeader = (children, opts = {}) => new TableCell({ margins: { top: 20, bottom: 20, left: 40, right: 40 }, verticalAlign: 'center', ...opts, children })
         const nilai = (t) => paragraf([teks(t, { size: 20 })], { alignment: AlignmentType.DISTRIBUTE })
+        const kosongHeader = () => cellHeader([paragraf([teks('')])])
         return new Header({
           children: [
             new Table({
@@ -541,9 +542,9 @@ export async function buatBlobSuratDocx(sprin, penandatangan = PENANDATANGAN_DEF
                           children: [new TextRun({ children: [PageNumber.CURRENT], font: FONT, size: 20 })],
                         }),
                       ],
-                      { rowSpan: 3 },
+                      { rowSpan: 3, verticalAlign: 'top', margins: { top: 20, bottom: 20, left: 40, right: 220 } },
                     ),
-                    cellHeader([paragraf([teks('SURAT PERINTAH KAPOLRES CIMAHI', { size: 20 })], { alignment: AlignmentType.CENTER })], {
+                    cellHeader([paragraf([teks('SURAT PERINTAH KAPOLRES CIMAHI', { size: 20 })], { alignment: AlignmentType.DISTRIBUTE })], {
                       columnSpan: 3,
                       width: { size: KOLOM_HEADER[1] + KOLOM_HEADER[2] + KOLOM_HEADER[3], type: WidthType.DXA },
                     }),
@@ -562,6 +563,9 @@ export async function buatBlobSuratDocx(sprin, penandatangan = PENANDATANGAN_DEF
                     cellHeader([paragraf([teks(':', { size: 20 })], { alignment: AlignmentType.CENTER })]),
                     cellHeader([nilai(tanggalPanjang(sprin.tanggalMulai).toUpperCase())]),
                   ],
+                }),
+                new TableRow({
+                  children: [kosongHeader(), kosongHeader(), kosongHeader(), kosongHeader()],
                 }),
               ],
             }),
