@@ -461,13 +461,65 @@ export async function buatBlobSuratDocx(sprin, penandatangan = PENANDATANGAN_DEF
       titlePage: true,
     },
     headers: {
-      default: new Header({
-        children: [
-          paragraf([teks('SURAT PERINTAH KAPOLRES CIMAHI', { size: 20 })], { alignment: AlignmentType.CENTER, spacing: { after: 0 } }),
-          paragraf([teks(`NOMOR : ${sprin.nomorLengkap}`, { size: 20 })], { alignment: AlignmentType.CENTER, spacing: { after: 0 } }),
-          paragraf([teks(`TANGGAL : ${tanggalPanjang(sprin.tanggalMulai).toUpperCase()}`, { size: 20 })], { alignment: AlignmentType.CENTER }),
-        ],
-      }),
+      // Header halaman 2 dst: no. halaman di kiri + tabel 3 baris (judul,
+      // nomor, tanggal) bergaris pemisah horizontal saja (tanpa garis luar/
+      // vertikal). Nilai NOMOR/TANGGAL dibuat rata kiri-kanan per huruf
+      // (distribute) supaya melebar rapi mengisi penuh lebar kolomnya.
+      default: (() => {
+        const KOLOM_HEADER = skalakanLebar([450, 1300, 350, 6950], LEBAR_ISI_SURAT)
+        const TANPA_GARIS_LUAR = {
+          top: { style: BorderStyle.NONE },
+          bottom: { style: BorderStyle.NONE },
+          left: { style: BorderStyle.NONE },
+          right: { style: BorderStyle.NONE },
+          insideHorizontal: { style: BorderStyle.SINGLE, size: 4, color: '000000' },
+          insideVertical: { style: BorderStyle.NONE },
+        }
+        const cellHeader = (children, opts = {}) => new TableCell({ margins: { top: 20, bottom: 20, left: 40, right: 40 }, verticalAlign: 'center', ...opts, children })
+        const nilai = (t) => paragraf([teks(t, { size: 20 })], { alignment: AlignmentType.DISTRIBUTE })
+        return new Header({
+          children: [
+            new Table({
+              width: { size: LEBAR_ISI_SURAT, type: WidthType.DXA },
+              columnWidths: KOLOM_HEADER,
+              borders: TANPA_GARIS_LUAR,
+              rows: [
+                new TableRow({
+                  children: [
+                    cellHeader(
+                      [
+                        new Paragraph({
+                          alignment: AlignmentType.CENTER,
+                          children: [new TextRun({ children: [PageNumber.CURRENT], font: FONT, size: 20 })],
+                        }),
+                      ],
+                      { rowSpan: 3 },
+                    ),
+                    cellHeader([paragraf([teks('SURAT PERINTAH KAPOLRES CIMAHI', { size: 20 })], { alignment: AlignmentType.CENTER })], {
+                      columnSpan: 3,
+                      width: { size: KOLOM_HEADER[1] + KOLOM_HEADER[2] + KOLOM_HEADER[3], type: WidthType.DXA },
+                    }),
+                  ],
+                }),
+                new TableRow({
+                  children: [
+                    cellHeader([paragraf([teks('NOMOR', { size: 20 })])]),
+                    cellHeader([paragraf([teks(':', { size: 20 })], { alignment: AlignmentType.CENTER })]),
+                    cellHeader([nilai(sprin.nomorLengkap)]),
+                  ],
+                }),
+                new TableRow({
+                  children: [
+                    cellHeader([paragraf([teks('TANGGAL', { size: 20 })])]),
+                    cellHeader([paragraf([teks(':', { size: 20 })], { alignment: AlignmentType.CENTER })]),
+                    cellHeader([nilai(tanggalPanjang(sprin.tanggalMulai).toUpperCase())]),
+                  ],
+                }),
+              ],
+            }),
+          ],
+        })
+      })(),
       first: new Header({ children: [new Paragraph({ children: [] })] }),
     },
     children: [
