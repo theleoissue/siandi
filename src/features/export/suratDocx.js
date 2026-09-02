@@ -9,6 +9,7 @@ import {
   AlignmentType,
   UnderlineType,
   WidthType,
+  TableLayoutType,
   TabStopType,
   BorderStyle,
   PageOrientation,
@@ -415,10 +416,10 @@ export async function buatBlobSuratDocx(sprin, penandatangan = PENANDATANGAN_DEF
   const MARGIN_SURAT = { top: 567, bottom: 283, left: 1134, right: 851, header: 200, footer: 200 }
   const LEBAR_ISI_SURAT = 11906 - MARGIN_SURAT.left - MARGIN_SURAT.right
   const KOLOM_ISI = skalakanLebar([1700, 300, 7100], LEBAR_ISI_SURAT)
-  // Blok TTD dipadatkan & ditarik ke ujung kanan margin, mirip header
-  // berulang -- bukan selebar penuh halaman.
-  const LEBAR_TTD = Math.round(LEBAR_ISI_SURAT * 0.72)
-  const KOLOM_TTD = skalakanLebar([3500, 6100], LEBAR_TTD)
+  // Blok TTD dibuat autofit (lebar tabel = selebar baris terpanjang beneran,
+  // dihitung Word sendiri saat dibuka -- bukan rasio tebakan) dan ditarik ke
+  // ujung kanan margin. Baris yang lebih pendek & DISTRIBUTE (pada tanggal,
+  // KEPALA KEPOLISIAN) otomatis stretch mengisi lebar itu.
   const kop = [
     paragraf([teks(sprin.kodeKlasifikasi || '', { size: 20 })], { alignment: AlignmentType.RIGHT, spacing: { after: 0 } }),
     paragraf([teks('KEPOLISIAN NEGARA REPUBLIK INDONESIA', { size: 22 })], { alignment: AlignmentType.CENTER, indent: INDENT_KOP, spacing: { after: 0 } }),
@@ -469,24 +470,22 @@ export async function buatBlobSuratDocx(sprin, penandatangan = PENANDATANGAN_DEF
     ],
   })
 
-  const selTtd = (children, opts = {}) => new TableCell({ borders: TANPA_GARIS, margins: { top: 40, bottom: 40, left: 80, right: 80 }, ...opts, children })
-  const selTtdPenuh = (children) => selTtd(children, { columnSpan: 2, width: { size: LEBAR_TTD, type: WidthType.DXA } })
+  const LEBAR_AUTO_TTD = { size: 0, type: WidthType.AUTO }
+  const selTtd = (children, opts = {}) => new TableCell({ borders: TANPA_GARIS, width: LEBAR_AUTO_TTD, margins: { top: 40, bottom: 40, left: 80, right: 80 }, ...opts, children })
+  const selTtdPenuh = (children) => selTtd(children, { columnSpan: 2 })
   const blokTtd = new Table({
     alignment: AlignmentType.RIGHT,
-    width: { size: LEBAR_TTD, type: WidthType.DXA },
-    columnWidths: KOLOM_TTD,
+    layout: TableLayoutType.AUTOFIT,
+    width: LEBAR_AUTO_TTD,
     borders: TANPA_GARIS,
     rows: [
       new TableRow({
-        children: [
-          selTtd([paragraf([teks('Dikeluarkan di')])], { width: { size: KOLOM_TTD[0], type: WidthType.DXA } }),
-          selTtd([paragraf([teks(': Cimahi')])], { width: { size: KOLOM_TTD[1], type: WidthType.DXA } }),
-        ],
+        children: [selTtd([paragraf([teks('Dikeluarkan di')])]), selTtd([paragraf([teks(': Cimahi')])])],
       }),
       new TableRow({
         children: [
-          selTtd([paragraf([teks('pada tanggal')])], { width: { size: KOLOM_TTD[0], type: WidthType.DXA } }),
-          selTtd([paragraf([teks(`: ${tanggalPanjang(sprin.tanggalMulai)}`)], { alignment: AlignmentType.DISTRIBUTE })], { width: { size: KOLOM_TTD[1], type: WidthType.DXA } }),
+          selTtd([paragraf([teks('pada tanggal')])]),
+          selTtd([paragraf([teks(`: ${tanggalPanjang(sprin.tanggalMulai)}`)], { alignment: AlignmentType.DISTRIBUTE })]),
         ],
       }),
       new TableRow({
