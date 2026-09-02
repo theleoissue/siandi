@@ -466,6 +466,8 @@ export async function buatBlobSuratDocx(sprin, penandatangan = PENANDATANGAN_DEF
     ],
   })
 
+  const selTtd = (children, opts = {}) => new TableCell({ borders: TANPA_GARIS, margins: { top: 40, bottom: 40, left: 80, right: 80 }, ...opts, children })
+  const selTtdPenuh = (children) => selTtd(children, { columnSpan: 2, width: { size: LEBAR_ISI_SURAT, type: WidthType.DXA } })
   const blokTtd = new Table({
     width: { size: LEBAR_ISI_SURAT, type: WidthType.DXA },
     columnWidths: KOLOM_TTD,
@@ -473,26 +475,31 @@ export async function buatBlobSuratDocx(sprin, penandatangan = PENANDATANGAN_DEF
     rows: [
       new TableRow({
         children: [
-          new TableCell({ borders: TANPA_GARIS, width: { size: KOLOM_TTD[0], type: WidthType.DXA }, children: [paragraf([teks('')])] }),
-          new TableCell({
-            borders: TANPA_GARIS,
-            width: { size: KOLOM_TTD[1], type: WidthType.DXA },
-            children: [
-              paragraf([teks('Dikeluarkan di'), teks('\t'), teks(': Cimahi')], {
-                tabStops: [{ type: TabStopType.LEFT, position: 1500 }],
-              }),
-              paragraf([teks('pada tanggal'), teks('\t'), teks(`: ${tanggalPanjang(sprin.tanggalMulai)}`)], {
-                tabStops: [{ type: TabStopType.LEFT, position: 1500 }],
-              }),
-              paragraf([teks('KEPALA KEPOLISIAN RESOR CIMAHI POLDA JABAR')], { alignment: AlignmentType.CENTER }),
-              ...kosong(4),
-              paragraf([teks(String(penandatangan.nama).toUpperCase(), { bold: true, underline: { type: UnderlineType.SINGLE } })], {
-                alignment: AlignmentType.CENTER,
-              }),
-              paragraf([teks(`${penandatangan.pangkat} NRP ${penandatangan.nrp}`)], { alignment: AlignmentType.CENTER }),
-            ],
-          }),
+          selTtd([paragraf([teks('Dikeluarkan di')])], { width: { size: KOLOM_TTD[0], type: WidthType.DXA } }),
+          selTtd([paragraf([teks(': Cimahi')])], { width: { size: KOLOM_TTD[1], type: WidthType.DXA } }),
         ],
+      }),
+      new TableRow({
+        children: [
+          selTtd([paragraf([teks('pada tanggal')])], { width: { size: KOLOM_TTD[0], type: WidthType.DXA } }),
+          selTtd([paragraf([teks(`: ${tanggalPanjang(sprin.tanggalMulai)}`)])], { width: { size: KOLOM_TTD[1], type: WidthType.DXA } }),
+        ],
+      }),
+      new TableRow({
+        children: [selTtdPenuh([paragraf([teks('KEPALA KEPOLISIAN RESOR CIMAHI POLDA JABAR')], { alignment: AlignmentType.CENTER })])],
+      }),
+      new TableRow({ children: [selTtdPenuh(kosong(4))] }),
+      new TableRow({
+        children: [
+          selTtdPenuh([
+            paragraf([teks(String(penandatangan.nama).toUpperCase(), { bold: true, underline: { type: UnderlineType.SINGLE } })], {
+              alignment: AlignmentType.CENTER,
+            }),
+          ]),
+        ],
+      }),
+      new TableRow({
+        children: [selTtdPenuh([paragraf([teks(`${penandatangan.pangkat} NRP ${penandatangan.nrp}`)], { alignment: AlignmentType.CENTER })])],
       }),
     ],
   })
