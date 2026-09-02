@@ -167,23 +167,30 @@ function bangunSectionLampiran(sprin, penandatangan) {
   // Kepala lampiran meniru dokumen LAMP asli: kop instansi (teks, bukan gambar
   // lambang) di kiri sejajar dengan blok "LAMPIRAN SPRIN..." di kanan --
   // disusun sebagai tabel 2 kolom tanpa garis.
+  // Lebar tabel kop disamakan dengan lebar tabel personel (mengikuti kertas
+  // landscape penuh) supaya blok kanan "LAMPIRAN SURAT PERINTAH..." tertarik
+  // sampai margin kanan kertas, bukan cuma setengah lebar portrait lama.
+  const LEBAR_KEPALA_LAMPIRAN = LEBAR_KOLOM_LAMPIRAN.reduce((a, b) => a + b, 0)
+  const LEBAR_KOLOM_KEPALA = LEBAR_KEPALA_LAMPIRAN / 2
+  const INDENT_KOP_LAMPIRAN = { right: Math.round(LEBAR_KOLOM_KEPALA * 0.496) }
   const kepalaKiriKanan = new Table({
-    width: { size: 10430, type: WidthType.DXA },
-    columnWidths: [5215, 5215],
+    width: { size: LEBAR_KEPALA_LAMPIRAN, type: WidthType.DXA },
+    columnWidths: [LEBAR_KOLOM_KEPALA, LEBAR_KOLOM_KEPALA],
     borders: TANPA_GARIS,
     rows: [
       new TableRow({
         children: [
           sel(
             [
-              paragraf([teks('KEPOLISIAN NEGARA REPUBLIK INDONESIA', { size: 20 })], { alignment: AlignmentType.LEFT, spacing: { after: 0 } }),
-              paragraf([teks('DAERAH JAWA BARAT', { size: 20 })], { alignment: AlignmentType.LEFT, spacing: { after: 0 } }),
+              paragraf([teks('KEPOLISIAN NEGARA REPUBLIK INDONESIA', { size: 20 })], { alignment: AlignmentType.CENTER, indent: INDENT_KOP_LAMPIRAN, spacing: { after: 0 } }),
+              paragraf([teks('DAERAH JAWA BARAT', { size: 20 })], { alignment: AlignmentType.CENTER, indent: INDENT_KOP_LAMPIRAN, spacing: { after: 0 } }),
               paragraf([teks('RESOR CIMAHI', { size: 20 })], {
-                alignment: AlignmentType.LEFT,
+                alignment: AlignmentType.CENTER,
+                indent: INDENT_KOP_LAMPIRAN,
                 border: { bottom: { style: BorderStyle.SINGLE, size: 8, color: '000000', space: 1 } },
               }),
             ],
-            5215,
+            LEBAR_KOLOM_KEPALA,
           ),
           sel(
             [
@@ -192,7 +199,7 @@ function bangunSectionLampiran(sprin, penandatangan) {
               kanan(`NOMOR  : ${sprin.nomorLengkap}`),
               kanan(`TANGGAL  : ${tanggalPanjang(sprin.tanggalMulai).toUpperCase()}`),
             ],
-            5215,
+            LEBAR_KOLOM_KEPALA,
           ),
         ],
       }),
