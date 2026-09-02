@@ -388,15 +388,10 @@ function bangunSectionLampiran(sprin, penandatangan) {
       titlePage: true,
     },
     headers: {
-      // Header halaman lampiran ke-2 dst: sama polanya dengan header surat
-      // depan (no. halaman + tabel 3 baris, garis pemisah horizontal saja),
-      // tapi ditarik ke pojok kanan -- mulai dari ruler ~8,5cm, bukan
-      // selebar penuh kertas landscape.
-      default: (() => {
-        const TWIP_PER_CM_HDR = 566.9294
-        const LEBAR_HEADER_ULANG = LEBAR_ISI_LAMPIRAN - Math.round(8.5 * TWIP_PER_CM_HDR)
-        return new Header({ children: [buatTabelInfoLampiran(sprin, LEBAR_HEADER_ULANG)] })
-      })(),
+      // Header halaman lampiran ke-2 dst: persis sama lebarnya dengan tabel
+      // info di kop halaman pertama (LEBAR_INFO_KEPALA) -- supaya "padatan"
+      // ke kanannya konsisten di semua halaman, bukan cuma halaman pertama.
+      default: new Header({ children: [buatTabelInfoLampiran(sprin, LEBAR_INFO_KEPALA)] }),
       first: new Header({ children: [new Paragraph({ children: [] })] }),
     },
     children: [...kepala, tabel, ...ttd],
