@@ -331,47 +331,55 @@ function bangunSectionLampiran(sprin, penandatangan) {
     },
     headers: {
       // Header halaman lampiran ke-2 dst: sama polanya dengan header surat
-      // depan (no. halaman + garis vertikal + 3 baris teks stretch dengan
-      // garis bawah antar baris), tapi ditarik ke pojok kanan -- mulai dari
-      // ruler ~8,5cm, bukan selebar penuh kertas landscape.
+      // depan (no. halaman + tabel 3 baris, garis pemisah horizontal saja),
+      // tapi ditarik ke pojok kanan -- mulai dari ruler ~8,5cm, bukan
+      // selebar penuh kertas landscape.
       default: (() => {
         const TWIP_PER_CM_HDR = 566.9294
         const LEBAR_HEADER_ULANG = LEBAR_ISI_LAMPIRAN - Math.round(8.5 * TWIP_PER_CM_HDR)
-        const KOLOM_HEADER = skalakanLebar([450, 9050], LEBAR_HEADER_ULANG)
-        const GARIS_VERTIKAL_SAJA = {
+        const KOLOM_HEADER = skalakanLebar([450, 1300, 350, 6950], LEBAR_HEADER_ULANG)
+        const TANPA_GARIS_LUAR = {
           top: { style: BorderStyle.NONE },
           bottom: { style: BorderStyle.NONE },
           left: { style: BorderStyle.NONE },
           right: { style: BorderStyle.NONE },
-          insideHorizontal: { style: BorderStyle.NONE },
-          insideVertical: { style: BorderStyle.SINGLE, size: 4, color: '000000' },
+          insideHorizontal: { style: BorderStyle.SINGLE, size: 4, color: '000000' },
+          insideVertical: { style: BorderStyle.NONE },
         }
-        const GARIS_BAWAH = { bottom: { style: BorderStyle.SINGLE, size: 4, color: '000000', space: 2 } }
-        const barisHeader = (t, { garisBawah = true } = {}) =>
-          paragraf([teks(t, { size: 18 })], { alignment: AlignmentType.DISTRIBUTE, border: garisBawah ? GARIS_BAWAH : undefined })
+        const cellHeader = (children, opts = {}) => new TableCell({ margins: { top: 20, bottom: 20, left: 40, right: 40 }, verticalAlign: 'center', ...opts, children })
+        const nilai = (t) => paragraf([teks(t, { size: 18 })], { alignment: AlignmentType.DISTRIBUTE })
         return new Header({
           children: [
             new Table({
               alignment: AlignmentType.RIGHT,
               width: { size: LEBAR_HEADER_ULANG, type: WidthType.DXA },
               columnWidths: KOLOM_HEADER,
-              borders: GARIS_VERTIKAL_SAJA,
+              borders: TANPA_GARIS_LUAR,
               rows: [
                 new TableRow({
                   children: [
-                    new TableCell({
-                      verticalAlign: 'top',
-                      margins: { top: 20, bottom: 20, left: 40, right: 80 },
-                      children: [new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ children: [PageNumber.CURRENT], font: FONT, size: 18 })] })],
+                    cellHeader(
+                      [new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ children: [PageNumber.CURRENT], font: FONT, size: 18 })] })],
+                      { rowSpan: 3 },
+                    ),
+                    cellHeader([paragraf([teks('LAMPIRAN SURAT PERINTAH KAPOLRES CIMAHI', { size: 18 })], { alignment: AlignmentType.CENTER })], {
+                      columnSpan: 3,
+                      width: { size: KOLOM_HEADER[1] + KOLOM_HEADER[2] + KOLOM_HEADER[3], type: WidthType.DXA },
                     }),
-                    new TableCell({
-                      margins: { top: 20, bottom: 20, left: 80, right: 0 },
-                      children: [
-                        barisHeader('LAMPIRAN SURAT PERINTAH KAPOLRES CIMAHI'),
-                        barisHeader(`NOMOR : ${sprin.nomorLengkap}`),
-                        barisHeader(`TANGGAL : ${tanggalPanjang(sprin.tanggalMulai).toUpperCase()}`, { garisBawah: false }),
-                      ],
-                    }),
+                  ],
+                }),
+                new TableRow({
+                  children: [
+                    cellHeader([paragraf([teks('NOMOR', { size: 18 })])]),
+                    cellHeader([paragraf([teks(':', { size: 18 })], { alignment: AlignmentType.CENTER })]),
+                    cellHeader([nilai(sprin.nomorLengkap)]),
+                  ],
+                }),
+                new TableRow({
+                  children: [
+                    cellHeader([paragraf([teks('TANGGAL', { size: 18 })])]),
+                    cellHeader([paragraf([teks(':', { size: 18 })], { alignment: AlignmentType.CENTER })]),
+                    cellHeader([nilai(tanggalPanjang(sprin.tanggalMulai).toUpperCase())]),
                   ],
                 }),
               ],
@@ -497,46 +505,58 @@ export async function buatBlobSuratDocx(sprin, penandatangan = PENANDATANGAN_DEF
       titlePage: true,
     },
     headers: {
-      // Header halaman 2 dst: no. halaman di kiri, dipisah garis vertikal
-      // dari 3 baris teks (judul, nomor, tanggal). Tiap baris teks stretch
-      // rata kiri-kanan per huruf (distribute) mengisi penuh lebar kolomnya,
-      // dengan garis bawah pemisah di antara baris 1&2 dan 2&3 (bukan tabel
-      // berkotak -- cuma garis tunggal, seperti dokumen sumber).
+      // Header halaman 2 dst: no. halaman di kiri + tabel 3 baris (judul,
+      // nomor, tanggal) bergaris pemisah horizontal saja (tanpa garis luar/
+      // vertikal). Nilai NOMOR/TANGGAL dibuat rata kiri-kanan per huruf
+      // (distribute) supaya melebar rapi mengisi penuh lebar kolomnya.
       default: (() => {
-        const KOLOM_HEADER = skalakanLebar([450, 9050], LEBAR_ISI_SURAT)
-        const GARIS_VERTIKAL_SAJA = {
+        const KOLOM_HEADER = skalakanLebar([450, 1300, 350, 6950], LEBAR_ISI_SURAT)
+        const TANPA_GARIS_LUAR = {
           top: { style: BorderStyle.NONE },
           bottom: { style: BorderStyle.NONE },
           left: { style: BorderStyle.NONE },
           right: { style: BorderStyle.NONE },
-          insideHorizontal: { style: BorderStyle.NONE },
-          insideVertical: { style: BorderStyle.SINGLE, size: 4, color: '000000' },
+          insideHorizontal: { style: BorderStyle.SINGLE, size: 4, color: '000000' },
+          insideVertical: { style: BorderStyle.NONE },
         }
-        const GARIS_BAWAH = { bottom: { style: BorderStyle.SINGLE, size: 4, color: '000000', space: 2 } }
-        const barisHeader = (t, { garisBawah = true } = {}) =>
-          paragraf([teks(t, { size: 20 })], { alignment: AlignmentType.DISTRIBUTE, border: garisBawah ? GARIS_BAWAH : undefined })
+        const cellHeader = (children, opts = {}) => new TableCell({ margins: { top: 20, bottom: 20, left: 40, right: 40 }, verticalAlign: 'center', ...opts, children })
+        const nilai = (t) => paragraf([teks(t, { size: 20 })], { alignment: AlignmentType.DISTRIBUTE })
         return new Header({
           children: [
             new Table({
               width: { size: LEBAR_ISI_SURAT, type: WidthType.DXA },
               columnWidths: KOLOM_HEADER,
-              borders: GARIS_VERTIKAL_SAJA,
+              borders: TANPA_GARIS_LUAR,
               rows: [
                 new TableRow({
                   children: [
-                    new TableCell({
-                      verticalAlign: 'top',
-                      margins: { top: 20, bottom: 20, left: 40, right: 80 },
-                      children: [new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ children: [PageNumber.CURRENT], font: FONT, size: 20 })] })],
-                    }),
-                    new TableCell({
-                      margins: { top: 20, bottom: 20, left: 80, right: 0 },
-                      children: [
-                        barisHeader('SURAT PERINTAH KAPOLRES CIMAHI'),
-                        barisHeader(`NOMOR : ${sprin.nomorLengkap}`),
-                        barisHeader(`TANGGAL : ${tanggalPanjang(sprin.tanggalMulai).toUpperCase()}`, { garisBawah: false }),
+                    cellHeader(
+                      [
+                        new Paragraph({
+                          alignment: AlignmentType.CENTER,
+                          children: [new TextRun({ children: [PageNumber.CURRENT], font: FONT, size: 20 })],
+                        }),
                       ],
+                      { rowSpan: 3 },
+                    ),
+                    cellHeader([paragraf([teks('SURAT PERINTAH KAPOLRES CIMAHI', { size: 20 })], { alignment: AlignmentType.CENTER })], {
+                      columnSpan: 3,
+                      width: { size: KOLOM_HEADER[1] + KOLOM_HEADER[2] + KOLOM_HEADER[3], type: WidthType.DXA },
                     }),
+                  ],
+                }),
+                new TableRow({
+                  children: [
+                    cellHeader([paragraf([teks('NOMOR', { size: 20 })])]),
+                    cellHeader([paragraf([teks(':', { size: 20 })], { alignment: AlignmentType.CENTER })]),
+                    cellHeader([nilai(sprin.nomorLengkap)]),
+                  ],
+                }),
+                new TableRow({
+                  children: [
+                    cellHeader([paragraf([teks('TANGGAL', { size: 20 })])]),
+                    cellHeader([paragraf([teks(':', { size: 20 })], { alignment: AlignmentType.CENTER })]),
+                    cellHeader([nilai(tanggalPanjang(sprin.tanggalMulai).toUpperCase())]),
                   ],
                 }),
               ],
