@@ -82,15 +82,28 @@ function sel(children, lebar) {
   })
 }
 
-function barisBerlabel(label, isi) {
+// Skalakan proporsi lebar kolom ke total lebar target (mis. lebar isi halaman
+// setelah margin) -- supaya tabel selalu mengikuti margin: margin mengecil,
+// lebar isi bertambah, tabel ikut melebar (kolom terakhir menyerap sisa
+// pembulatan supaya totalnya presisi).
+function skalakanLebar(kolom, totalTarget) {
+  const total = kolom.reduce((a, b) => a + b, 0)
+  const faktor = totalTarget / total
+  const hasil = kolom.map((w) => Math.round(w * faktor))
+  const selisih = totalTarget - hasil.reduce((a, b) => a + b, 0)
+  hasil[hasil.length - 1] += selisih
+  return hasil
+}
+
+function barisBerlabel(label, isi, kolom = [1700, 300, 7100]) {
   return new TableRow({
-    children: [sel([paragraf([teks(label)])], 1700), sel([paragraf([teks(label ? ':' : '')])], 300), sel(isi, 7100)],
+    children: [sel([paragraf([teks(label)])], kolom[0]), sel([paragraf([teks(label ? ':' : '')])], kolom[1]), sel(isi, kolom[2])],
   })
 }
 
-function barisKosong() {
+function barisKosong(kolom = [1700, 300, 7100]) {
   return new TableRow({
-    children: [sel([paragraf([teks('')])], 1700), sel([paragraf([teks('')])], 300), sel([paragraf([teks('')])], 7100)],
+    children: [sel([paragraf([teks('')])], kolom[0]), sel([paragraf([teks('')])], kolom[1]), sel([paragraf([teks('')])], kolom[2])],
   })
 }
 
@@ -154,13 +167,19 @@ function barisPersonelLampiran(sprin) {
   return baris
 }
 
-const LEBAR_KOLOM_LAMPIRAN = [650, 650, 3400, 1300, 1500, 3900, 3200]
+const LEBAR_KOLOM_LAMPIRAN_DASAR = [650, 650, 3400, 1300, 1500, 3900, 3200]
 
 function bangunSectionLampiran(sprin, penandatangan) {
   const labelWaktu =
     sprin.tanggalMulai === sprin.tanggalSelesai
       ? `HARI ${namaHari(sprin.tanggalMulai).toUpperCase()} TANGGAL ${tanggalPanjang(sprin.tanggalMulai).toUpperCase()}`
       : `TANGGAL ${tanggalPanjang(sprin.tanggalMulai).toUpperCase()} S.D. ${tanggalPanjang(sprin.tanggalSelesai).toUpperCase()}`
+
+  // Tabel-tabel lampiran selalu melebar mengikuti sisa lebar kertas landscape
+  // setelah margin (bukan lebar tetap) -- margin kecil, tabel ikut melebar.
+  const MARGIN_LAMPIRAN = { top: 567, bottom: 567, left: 567, right: 567 }
+  const LEBAR_ISI_LAMPIRAN = 16838 - MARGIN_LAMPIRAN.left - MARGIN_LAMPIRAN.right
+  const LEBAR_KOLOM_LAMPIRAN = skalakanLebar(LEBAR_KOLOM_LAMPIRAN_DASAR, LEBAR_ISI_LAMPIRAN)
 
   // Kepala lampiran meniru dokumen LAMP asli: kop instansi (teks, bukan gambar
   // lambang) di kiri sejajar dengan blok "LAMPIRAN SPRIN..." di kanan --
@@ -293,7 +312,7 @@ function bangunSectionLampiran(sprin, penandatangan) {
         // lebar/tinggi. Kalau diberi dimensi landscape sekaligus orientation,
         // ter-swap dua kali dan malah balik portrait (tabel lebar terpotong).
         size: { orientation: PageOrientation.LANDSCAPE, width: 11906, height: 16838 },
-        margin: { top: 567, bottom: 567, left: 567, right: 567 },
+        margin: MARGIN_LAMPIRAN,
       },
       // Halaman pertama beda dari halaman berikutnya (differentFirst di dokumen
       // asli) -- kop lengkap sudah ada di badan halaman 1, jadi header berulang
@@ -328,6 +347,13 @@ export async function buatBlobSuratDocx(sprin, penandatangan = PENANDATANGAN_DEF
   // kelihatan condong ke kiri walau teknis masih center. Kode klasifikasi di
   // pojok kanan atas, lambang Tribrata di tengah bawahnya, baru judul + nomor.
   const INDENT_KOP = { right: 5155 }
+  // Margin surat depan (dari dokumen asli, lihat sectionSurat di bawah) --
+  // tabel isi & blok tanda tangan dihitung dari sini juga, supaya keduanya
+  // otomatis melebar/menyempit kalau margin berubah, bukan lebar tetap.
+  const MARGIN_SURAT = { top: 709, bottom: 283, left: 1134, right: 851 }
+  const LEBAR_ISI_SURAT = 11906 - MARGIN_SURAT.left - MARGIN_SURAT.right
+  const KOLOM_ISI = skalakanLebar([1700, 300, 7100], LEBAR_ISI_SURAT)
+  const KOLOM_TTD = skalakanLebar([3500, 6100], LEBAR_ISI_SURAT)
   const kop = [
     paragraf([teks(sprin.kodeKlasifikasi || '', { size: 20 })], { alignment: AlignmentType.RIGHT, spacing: { after: 0 } }),
     paragraf([teks('KEPOLISIAN NEGARA REPUBLIK INDONESIA', { size: 22 })], { alignment: AlignmentType.CENTER, indent: INDENT_KOP, spacing: { after: 0 } }),
@@ -352,43 +378,43 @@ export async function buatBlobSuratDocx(sprin, penandatangan = PENANDATANGAN_DEF
   ]
 
   const isi = new Table({
-    width: { size: 9100, type: WidthType.DXA },
-    columnWidths: [1700, 300, 7100],
+    width: { size: LEBAR_ISI_SURAT, type: WidthType.DXA },
+    columnWidths: KOLOM_ISI,
     borders: TANPA_GARIS,
     rows: [
-      barisBerlabel('Pertimbangan', [paragraf([teks(sprin.pertimbangan || '—')], { alignment: AlignmentType.JUSTIFIED })]),
-      barisKosong(),
-      barisBerlabel('Dasar', daftarBernomor(sprin.dasar ?? [])),
-      barisKosong(),
+      barisBerlabel('Pertimbangan', [paragraf([teks(sprin.pertimbangan || '—')], { alignment: AlignmentType.JUSTIFIED })], KOLOM_ISI),
+      barisKosong(KOLOM_ISI),
+      barisBerlabel('Dasar', daftarBernomor(sprin.dasar ?? []), KOLOM_ISI),
+      barisKosong(KOLOM_ISI),
       new TableRow({
         children: [
-          sel([paragraf([teks('')])], 1700),
-          sel([paragraf([teks('')])], 300),
-          sel([paragraf([teks('DIPERINTAHKAN', { bold: true })], { alignment: AlignmentType.CENTER })], 7100),
+          sel([paragraf([teks('')])], KOLOM_ISI[0]),
+          sel([paragraf([teks('')])], KOLOM_ISI[1]),
+          sel([paragraf([teks('DIPERINTAHKAN', { bold: true })], { alignment: AlignmentType.CENTER })], KOLOM_ISI[2]),
         ],
       }),
-      barisKosong(),
+      barisKosong(KOLOM_ISI),
       barisBerlabel('Kepada', [
         paragraf([teks('PARA PERSONEL POLRI POLRES CIMAHI YANG NAMA, PANGKAT DAN JABATANNYA TERLAMPIR DALAM SURAT PERINTAH INI.')], {
           alignment: AlignmentType.JUSTIFIED,
         }),
-      ]),
-      barisKosong(),
-      barisBerlabel('Untuk', daftarBernomor(sprin.untuk ?? [])),
+      ], KOLOM_ISI),
+      barisKosong(KOLOM_ISI),
+      barisBerlabel('Untuk', daftarBernomor(sprin.untuk ?? []), KOLOM_ISI),
     ],
   })
 
   const blokTtd = new Table({
-    width: { size: 9600, type: WidthType.DXA },
-    columnWidths: [3500, 6100],
+    width: { size: LEBAR_ISI_SURAT, type: WidthType.DXA },
+    columnWidths: KOLOM_TTD,
     borders: TANPA_GARIS,
     rows: [
       new TableRow({
         children: [
-          new TableCell({ borders: TANPA_GARIS, width: { size: 3500, type: WidthType.DXA }, children: [paragraf([teks('')])] }),
+          new TableCell({ borders: TANPA_GARIS, width: { size: KOLOM_TTD[0], type: WidthType.DXA }, children: [paragraf([teks('')])] }),
           new TableCell({
             borders: TANPA_GARIS,
-            width: { size: 6100, type: WidthType.DXA },
+            width: { size: KOLOM_TTD[1], type: WidthType.DXA },
             children: [
               paragraf([teks('Dikeluarkan di'), teks('\t'), teks(': Cimahi')], {
                 tabStops: [{ type: TabStopType.LEFT, position: 1500 }],
@@ -416,7 +442,7 @@ export async function buatBlobSuratDocx(sprin, penandatangan = PENANDATANGAN_DEF
     // INDONESIA" -- dengan margin yang salah sebelumnya, garis border kop jadi
     // kelihatan kepanjangan/over dari teksnya.
     properties: {
-      page: { size: { width: 11906, height: 16838 }, margin: { top: 709, bottom: 283, left: 1134, right: 851 } },
+      page: { size: { width: 11906, height: 16838 }, margin: MARGIN_SURAT },
       // Halaman 1 sudah punya kop lengkap di badan surat -- header berulang di
       // bawah cuma perlu muncul mulai halaman 2 kalau Dasar/Untuk panjang.
       titlePage: true,
