@@ -176,6 +176,61 @@ const LEBAR_KOLOM_LAMPIRAN_DASAR = [650, 650, 3400, 1300, 1500, 3900, 3200]
 // border di tempat lain yang memakai ukuran font berbeda (mis. kop lampiran).
 const LEBAR_TEKS_KOP_INSTANSI_11PT = 4766
 
+// Tabel info "LAMPIRAN SPRIN KAPOLRES CIMAHI / NOMOR / TANGGAL" bergaris
+// horizontal + no. halaman di kiri -- dipakai sama persis di kop halaman
+// pertama lampiran (kepalaKiriKanan) dan header berulang halaman 2 dst,
+// supaya keduanya konsisten. `lebarTotal` menentukan seberapa "padat" tabel
+// ini (dipanggil dengan lebar berbeda di tiap tempat).
+function buatTabelInfoLampiran(sprin, lebarTotal, { rataKanan = true } = {}) {
+  const KOLOM = skalakanLebar([450, 1300, 350, 6950], lebarTotal)
+  const TANPA_GARIS_LUAR = {
+    top: { style: BorderStyle.NONE },
+    bottom: { style: BorderStyle.NONE },
+    left: { style: BorderStyle.NONE },
+    right: { style: BorderStyle.NONE },
+    insideHorizontal: { style: BorderStyle.SINGLE, size: 4, color: '000000' },
+    insideVertical: { style: BorderStyle.NONE },
+  }
+  const cellInfo = (children, opts = {}) => new TableCell({ margins: { top: 20, bottom: 20, left: 40, right: 40 }, verticalAlign: 'center', ...opts, children })
+  const nilai = (t) => paragraf([teks(t, { size: 18 })], { alignment: AlignmentType.DISTRIBUTE })
+  const kosongInfo = () => cellInfo([paragraf([teks('')])])
+  return new Table({
+    alignment: rataKanan ? AlignmentType.RIGHT : undefined,
+    width: { size: lebarTotal, type: WidthType.DXA },
+    columnWidths: KOLOM,
+    borders: TANPA_GARIS_LUAR,
+    rows: [
+      new TableRow({
+        children: [
+          cellInfo(
+            [new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ children: [PageNumber.CURRENT], font: FONT, size: 18 })] })],
+            { rowSpan: 4, verticalAlign: 'top', margins: { top: 20, bottom: 20, left: 40, right: 220 } },
+          ),
+          cellInfo([paragraf([teks('LAMPIRAN SPRIN KAPOLRES CIMAHI', { size: 18 })], { alignment: AlignmentType.DISTRIBUTE })], {
+            columnSpan: 3,
+            width: { size: KOLOM[1] + KOLOM[2] + KOLOM[3], type: WidthType.DXA },
+          }),
+        ],
+      }),
+      new TableRow({
+        children: [
+          cellInfo([paragraf([teks('NOMOR', { size: 18 })])]),
+          cellInfo([paragraf([teks(':', { size: 18 })], { alignment: AlignmentType.CENTER })]),
+          cellInfo([nilai(sprin.nomorLengkap)]),
+        ],
+      }),
+      new TableRow({
+        children: [
+          cellInfo([paragraf([teks('TANGGAL', { size: 18 })])]),
+          cellInfo([paragraf([teks(':', { size: 18 })], { alignment: AlignmentType.CENTER })]),
+          cellInfo([nilai(tanggalPanjang(sprin.tanggalMulai).toUpperCase())]),
+        ],
+      }),
+      new TableRow({ children: [kosongInfo(), kosongInfo(), kosongInfo()] }),
+    ],
+  })
+}
+
 function bangunSectionLampiran(sprin, penandatangan) {
   const labelWaktu =
     sprin.tanggalMulai === sprin.tanggalSelesai
@@ -206,12 +261,12 @@ function bangunSectionLampiran(sprin, penandatangan) {
   const INDENT_KOP_LAMPIRAN_NILAI = LEBAR_KOLOM_KEPALA - LEBAR_TEKS_KOP_LAMPIRAN
   const INDENT_KOP_LAMPIRAN = { right: INDENT_KOP_LAMPIRAN_NILAI }
   const kanan = (t, o = {}) => paragraf([teks(t, o)], { alignment: AlignmentType.RIGHT })
-  // Sisi kanan kop (blok "LAMPIRAN SPRIN...") dibuat mirror dari sisi kiri:
-  // indent kiri sebesar nilai yang sama supaya blok ini tertarik rapi ke sisi
-  // kanan, rata kanan (bukan distribute) -- layout sederhana seperti semula.
-  // Khusus kop, tidak dipakai untuk blok tanda tangan di bawah (itu tetap
-  // pakai `kanan` biasa).
-  const kananKop = (t, o = {}) => paragraf([teks(t, o)], { alignment: AlignmentType.RIGHT, indent: { left: INDENT_KOP_LAMPIRAN_NILAI } })
+  // Kop kanan halaman pertama (di badan surat, bukan header berulang) pakai
+  // tabel info yang sama persis dengan header halaman 2 dst -- dipadatkan ke
+  // kanan dengan proporsi yang sama (LEBAR_HEADER_ULANG / LEBAR_ISI_LAMPIRAN)
+  // supaya kelihatan konsisten walau ditempatkan di kolom setengah halaman.
+  const RASIO_PADAT_INFO = (LEBAR_ISI_LAMPIRAN - Math.round(8.5 * 566.9294)) / LEBAR_ISI_LAMPIRAN
+  const LEBAR_INFO_KEPALA = Math.round(LEBAR_KOLOM_KEPALA * RASIO_PADAT_INFO)
   const kepalaKiriKanan = new Table({
     width: { size: LEBAR_KEPALA_LAMPIRAN, type: WidthType.DXA },
     columnWidths: [LEBAR_KOLOM_KEPALA, LEBAR_KOLOM_KEPALA],
@@ -231,14 +286,11 @@ function bangunSectionLampiran(sprin, penandatangan) {
             ],
             LEBAR_KOLOM_KEPALA,
           ),
-          sel(
-            [
-              kananKop('LAMPIRAN SPRIN KAPOLRES CIMAHI'),
-              kananKop(`NOMOR  : ${sprin.nomorLengkap}`),
-              kananKop(`TANGGAL  : ${tanggalPanjang(sprin.tanggalMulai).toUpperCase()}`),
-            ],
-            LEBAR_KOLOM_KEPALA,
-          ),
+          new TableCell({
+            borders: TANPA_GARIS,
+            width: { size: LEBAR_KOLOM_KEPALA, type: WidthType.DXA },
+            children: [buatTabelInfoLampiran(sprin, LEBAR_INFO_KEPALA)],
+          }),
         ],
       }),
     ],
@@ -341,59 +393,7 @@ function bangunSectionLampiran(sprin, penandatangan) {
       default: (() => {
         const TWIP_PER_CM_HDR = 566.9294
         const LEBAR_HEADER_ULANG = LEBAR_ISI_LAMPIRAN - Math.round(8.5 * TWIP_PER_CM_HDR)
-        const KOLOM_HEADER = skalakanLebar([450, 1300, 350, 6950], LEBAR_HEADER_ULANG)
-        const TANPA_GARIS_LUAR = {
-          top: { style: BorderStyle.NONE },
-          bottom: { style: BorderStyle.NONE },
-          left: { style: BorderStyle.NONE },
-          right: { style: BorderStyle.NONE },
-          insideHorizontal: { style: BorderStyle.SINGLE, size: 4, color: '000000' },
-          insideVertical: { style: BorderStyle.NONE },
-        }
-        const cellHeader = (children, opts = {}) => new TableCell({ margins: { top: 20, bottom: 20, left: 40, right: 40 }, verticalAlign: 'center', ...opts, children })
-        const nilai = (t) => paragraf([teks(t, { size: 18 })], { alignment: AlignmentType.DISTRIBUTE })
-        const kosongHeader = () => cellHeader([paragraf([teks('')])])
-        return new Header({
-          children: [
-            new Table({
-              alignment: AlignmentType.RIGHT,
-              width: { size: LEBAR_HEADER_ULANG, type: WidthType.DXA },
-              columnWidths: KOLOM_HEADER,
-              borders: TANPA_GARIS_LUAR,
-              rows: [
-                new TableRow({
-                  children: [
-                    cellHeader(
-                      [new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ children: [PageNumber.CURRENT], font: FONT, size: 18 })] })],
-                      { rowSpan: 4, verticalAlign: 'top', margins: { top: 20, bottom: 20, left: 40, right: 220 } },
-                    ),
-                    cellHeader([paragraf([teks('LAMPIRAN SPRIN KAPOLRES CIMAHI', { size: 18 })], { alignment: AlignmentType.DISTRIBUTE })], {
-                      columnSpan: 3,
-                      width: { size: KOLOM_HEADER[1] + KOLOM_HEADER[2] + KOLOM_HEADER[3], type: WidthType.DXA },
-                    }),
-                  ],
-                }),
-                new TableRow({
-                  children: [
-                    cellHeader([paragraf([teks('NOMOR', { size: 18 })])]),
-                    cellHeader([paragraf([teks(':', { size: 18 })], { alignment: AlignmentType.CENTER })]),
-                    cellHeader([nilai(sprin.nomorLengkap)]),
-                  ],
-                }),
-                new TableRow({
-                  children: [
-                    cellHeader([paragraf([teks('TANGGAL', { size: 18 })])]),
-                    cellHeader([paragraf([teks(':', { size: 18 })], { alignment: AlignmentType.CENTER })]),
-                    cellHeader([nilai(tanggalPanjang(sprin.tanggalMulai).toUpperCase())]),
-                  ],
-                }),
-                new TableRow({
-                  children: [kosongHeader(), kosongHeader(), kosongHeader()],
-                }),
-              ],
-            }),
-          ],
-        })
+        return new Header({ children: [buatTabelInfoLampiran(sprin, LEBAR_HEADER_ULANG)] })
       })(),
       first: new Header({ children: [new Paragraph({ children: [] })] }),
     },
