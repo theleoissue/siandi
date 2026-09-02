@@ -341,7 +341,7 @@ export async function buatBlobSuratDocx(sprin, penandatangan = PENANDATANGAN_DEF
       alignment: AlignmentType.CENTER,
       spacing: { before: 40, after: 20 },
       children: [
-        new ImageRun({ type: 'jpg', data: base64KeBytes(TRIBRATA_JPEG_BASE64), transformation: { width: 60, height: 60 } }),
+        new ImageRun({ type: 'jpg', data: base64KeBytes(TRIBRATA_JPEG_BASE64), transformation: { width: 49, height: 49 } }),
       ],
     }),
     paragraf([teks('SURAT PERINTAH', { characterSpacing: 40, underline: { type: UnderlineType.SINGLE } })], {
