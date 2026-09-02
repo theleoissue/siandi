@@ -207,10 +207,16 @@ function bangunSectionLampiran(sprin, penandatangan) {
   const INDENT_KOP_LAMPIRAN = { right: INDENT_KOP_LAMPIRAN_NILAI }
   const kanan = (t, o = {}) => paragraf([teks(t, o)], { alignment: AlignmentType.RIGHT })
   // Sisi kanan kop (blok "LAMPIRAN SURAT PERINTAH...") dibuat mirror dari sisi
-  // kiri: center + indent kiri sebesar nilai yang sama, supaya blok ini
-  // tertarik rapi ke sisi kanan alih-alih rata kanan mentah. Khusus kop, tidak
+  // kiri: indent kiri sebesar nilai yang sama supaya blok ini tertarik rapi ke
+  // sisi kanan, plus stretch (distribute) + garis pemisah antar baris supaya
+  // konsisten dengan tampilan header berulang halaman 2 dst. Khusus kop, tidak
   // dipakai untuk blok tanda tangan di bawah (itu tetap pakai `kanan` biasa).
-  const kananKop = (t, o = {}) => paragraf([teks(t, o)], { alignment: AlignmentType.CENTER, indent: { left: INDENT_KOP_LAMPIRAN_NILAI } })
+  const kananKop = (t, { garisBawah = false, ...o } = {}) =>
+    paragraf([teks(t, o)], {
+      alignment: AlignmentType.DISTRIBUTE,
+      indent: { left: INDENT_KOP_LAMPIRAN_NILAI },
+      border: garisBawah ? { bottom: { style: BorderStyle.SINGLE, size: 4, color: '000000', space: 2 } } : undefined,
+    })
   const kepalaKiriKanan = new Table({
     width: { size: LEBAR_KEPALA_LAMPIRAN, type: WidthType.DXA },
     columnWidths: [LEBAR_KOLOM_KEPALA, LEBAR_KOLOM_KEPALA],
@@ -233,8 +239,8 @@ function bangunSectionLampiran(sprin, penandatangan) {
           sel(
             [
               kananKop('LAMPIRAN SURAT PERINTAH'),
-              kananKop('KAPOLRES CIMAHI'),
-              kananKop(`NOMOR  : ${sprin.nomorLengkap}`),
+              kananKop('KAPOLRES CIMAHI', { garisBawah: true }),
+              kananKop(`NOMOR  : ${sprin.nomorLengkap}`, { garisBawah: true }),
               kananKop(`TANGGAL  : ${tanggalPanjang(sprin.tanggalMulai).toUpperCase()}`),
             ],
             LEBAR_KOLOM_KEPALA,
@@ -323,6 +329,10 @@ function bangunSectionLampiran(sprin, penandatangan) {
         // ter-swap dua kali dan malah balik portrait (tabel lebar terpotong).
         size: { orientation: PageOrientation.LANDSCAPE, width: 11906, height: 16838 },
         margin: MARGIN_LAMPIRAN,
+        // Nomor halaman lampiran mulai ulang dari 1 -- tanpa ini Word
+        // melanjutkan hitungan dari section surat depan (mis. jadi "4"
+        // padahal ini baru halaman ke-1 lampiran).
+        pageNumbers: { start: 1 },
       },
       // Halaman pertama beda dari halaman berikutnya (differentFirst di dokumen
       // asli) -- kop lengkap sudah ada di badan halaman 1, jadi header berulang
