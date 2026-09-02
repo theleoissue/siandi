@@ -417,7 +417,7 @@ export async function buatBlobSuratDocx(sprin, penandatangan = PENANDATANGAN_DEF
   const KOLOM_ISI = skalakanLebar([1700, 300, 7100], LEBAR_ISI_SURAT)
   // Blok TTD dipadatkan & ditarik ke ujung kanan margin, mirip header
   // berulang -- bukan selebar penuh halaman.
-  const LEBAR_TTD = Math.round(LEBAR_ISI_SURAT / 2)
+  const LEBAR_TTD = Math.round(LEBAR_ISI_SURAT * 0.72)
   const KOLOM_TTD = skalakanLebar([3500, 6100], LEBAR_TTD)
   const kop = [
     paragraf([teks(sprin.kodeKlasifikasi || '', { size: 20 })], { alignment: AlignmentType.RIGHT, spacing: { after: 0 } }),
@@ -486,11 +486,11 @@ export async function buatBlobSuratDocx(sprin, penandatangan = PENANDATANGAN_DEF
       new TableRow({
         children: [
           selTtd([paragraf([teks('pada tanggal')])], { width: { size: KOLOM_TTD[0], type: WidthType.DXA } }),
-          selTtd([paragraf([teks(`: ${tanggalPanjang(sprin.tanggalMulai)}`)])], { width: { size: KOLOM_TTD[1], type: WidthType.DXA } }),
+          selTtd([paragraf([teks(`: ${tanggalPanjang(sprin.tanggalMulai)}`)], { alignment: AlignmentType.DISTRIBUTE })], { width: { size: KOLOM_TTD[1], type: WidthType.DXA } }),
         ],
       }),
       new TableRow({
-        children: [selTtdPenuh([paragraf([teks('KEPALA KEPOLISIAN RESOR CIMAHI POLDA JABAR')], { alignment: AlignmentType.CENTER })])],
+        children: [selTtdPenuh([paragraf([teks('KEPALA KEPOLISIAN RESOR CIMAHI POLDA JABAR')], { alignment: AlignmentType.DISTRIBUTE })])],
       }),
       new TableRow({ children: [selTtdPenuh(kosong(4))] }),
       new TableRow({
