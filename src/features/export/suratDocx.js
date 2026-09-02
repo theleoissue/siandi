@@ -415,7 +415,10 @@ export async function buatBlobSuratDocx(sprin, penandatangan = PENANDATANGAN_DEF
   const MARGIN_SURAT = { top: 567, bottom: 283, left: 1134, right: 851, header: 200, footer: 200 }
   const LEBAR_ISI_SURAT = 11906 - MARGIN_SURAT.left - MARGIN_SURAT.right
   const KOLOM_ISI = skalakanLebar([1700, 300, 7100], LEBAR_ISI_SURAT)
-  const KOLOM_TTD = skalakanLebar([3500, 6100], LEBAR_ISI_SURAT)
+  // Blok TTD dipadatkan & ditarik ke ujung kanan margin, mirip header
+  // berulang -- bukan selebar penuh halaman.
+  const LEBAR_TTD = Math.round(LEBAR_ISI_SURAT / 2)
+  const KOLOM_TTD = skalakanLebar([3500, 6100], LEBAR_TTD)
   const kop = [
     paragraf([teks(sprin.kodeKlasifikasi || '', { size: 20 })], { alignment: AlignmentType.RIGHT, spacing: { after: 0 } }),
     paragraf([teks('KEPOLISIAN NEGARA REPUBLIK INDONESIA', { size: 22 })], { alignment: AlignmentType.CENTER, indent: INDENT_KOP, spacing: { after: 0 } }),
@@ -467,9 +470,10 @@ export async function buatBlobSuratDocx(sprin, penandatangan = PENANDATANGAN_DEF
   })
 
   const selTtd = (children, opts = {}) => new TableCell({ borders: TANPA_GARIS, margins: { top: 40, bottom: 40, left: 80, right: 80 }, ...opts, children })
-  const selTtdPenuh = (children) => selTtd(children, { columnSpan: 2, width: { size: LEBAR_ISI_SURAT, type: WidthType.DXA } })
+  const selTtdPenuh = (children) => selTtd(children, { columnSpan: 2, width: { size: LEBAR_TTD, type: WidthType.DXA } })
   const blokTtd = new Table({
-    width: { size: LEBAR_ISI_SURAT, type: WidthType.DXA },
+    alignment: AlignmentType.RIGHT,
+    width: { size: LEBAR_TTD, type: WidthType.DXA },
     columnWidths: KOLOM_TTD,
     borders: TANPA_GARIS,
     rows: [
