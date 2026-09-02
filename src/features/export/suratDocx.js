@@ -293,7 +293,7 @@ function bangunSectionLampiran(sprin, penandatangan) {
         // lebar/tinggi. Kalau diberi dimensi landscape sekaligus orientation,
         // ter-swap dua kali dan malah balik portrait (tabel lebar terpotong).
         size: { orientation: PageOrientation.LANDSCAPE, width: 11906, height: 16838 },
-        margin: { top: 720, bottom: 720, left: 720, right: 720 },
+        margin: { top: 1134, bottom: 1134, left: 1134, right: 1134 },
       },
       // Halaman pertama beda dari halaman berikutnya (differentFirst di dokumen
       // asli) -- kop lengkap sudah ada di badan halaman 1, jadi header berulang
@@ -413,7 +413,7 @@ export async function buatBlobSuratDocx(sprin, penandatangan = PENANDATANGAN_DEF
     // Margin mengikuti dokumen Sprin asli (twips): atas/kanan ~709, kiri ~799.
     // Bawah diberi ruang wajar (real memakai 0, terlalu mepet untuk cetak).
     properties: {
-      page: { size: { width: 11906, height: 16838 }, margin: { top: 720, bottom: 720, left: 1134, right: 851 } },
+      page: { size: { width: 11906, height: 16838 }, margin: { top: 1134, bottom: 1134, left: 1134, right: 1134 } },
       // Halaman 1 sudah punya kop lengkap di badan surat -- header berulang di
       // bawah cuma perlu muncul mulai halaman 2 kalau Dasar/Untuk panjang.
       titlePage: true,
