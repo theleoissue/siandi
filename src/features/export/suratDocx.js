@@ -176,9 +176,12 @@ function bangunSectionLampiran(sprin, penandatangan) {
         children: [
           sel(
             [
-              paragraf([teks('KEPOLISIAN NEGARA REPUBLIK INDONESIA', { size: 20 })], { alignment: AlignmentType.CENTER, spacing: { after: 0 } }),
-              paragraf([teks('DAERAH JAWA BARAT', { size: 20 })], { alignment: AlignmentType.CENTER, spacing: { after: 0 } }),
-              paragraf([teks('RESOR CIMAHI', { size: 20, underline: { type: UnderlineType.SINGLE } })], { alignment: AlignmentType.CENTER }),
+              paragraf([teks('KEPOLISIAN NEGARA REPUBLIK INDONESIA', { size: 20 })], { alignment: AlignmentType.LEFT, spacing: { after: 0 } }),
+              paragraf([teks('DAERAH JAWA BARAT', { size: 20 })], { alignment: AlignmentType.LEFT, spacing: { after: 0 } }),
+              paragraf([teks('RESOR CIMAHI', { size: 20 })], {
+                alignment: AlignmentType.LEFT,
+                border: { bottom: { style: BorderStyle.SINGLE, size: 8, color: '000000', space: 1 } },
+              }),
             ],
             5215,
           ),
@@ -307,9 +310,12 @@ export async function buatBlobSuratDocx(sprin, penandatangan = PENANDATANGAN_DEF
   // digaris bawah), lambang Tribrata di tengah bawahnya, baru judul + nomor.
   const kop = [
     paragraf([teks(sprin.kodeKlasifikasi || '', { size: 20 })], { alignment: AlignmentType.RIGHT, spacing: { after: 0 } }),
-    paragraf([teks('KEPOLISIAN NEGARA REPUBLIK INDONESIA', { size: 22 })], { alignment: AlignmentType.CENTER, spacing: { after: 0 } }),
-    paragraf([teks('DAERAH JAWA BARAT', { size: 22 })], { alignment: AlignmentType.CENTER, spacing: { after: 0 } }),
-    paragraf([teks('RESOR CIMAHI', { size: 22, underline: { type: UnderlineType.SINGLE } })], { alignment: AlignmentType.CENTER }),
+    paragraf([teks('KEPOLISIAN NEGARA REPUBLIK INDONESIA', { size: 22 })], { alignment: AlignmentType.LEFT, spacing: { after: 0 } }),
+    paragraf([teks('DAERAH JAWA BARAT', { size: 22 })], { alignment: AlignmentType.LEFT, spacing: { after: 0 } }),
+    paragraf([teks('RESOR CIMAHI', { size: 22 })], {
+      alignment: AlignmentType.LEFT,
+      border: { bottom: { style: BorderStyle.SINGLE, size: 8, color: '000000', space: 1 } },
+    }),
     new Paragraph({
       alignment: AlignmentType.CENTER,
       spacing: { before: 40, after: 20 },
