@@ -9,7 +9,15 @@ export function AuthProvider({ children }) {
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => setSession(data.session ?? null))
-    const { data: listener } = supabase.auth.onAuthStateChange((_event, s) => setSession(s))
+    // Supabase mengecek/refresh token setiap kali tab kembali fokus (visibilitychange),
+    // dan itu memicu event ini lagi walau user-nya sama persis. Kalau selalu setSession(s)
+    // dengan objek baru, seluruh app di bawah ini remount (lihat App.jsx: sedangMemuat jadi
+    // true -> tampilan "Memuat..." -> SprinStoreProvider ikut remount+refetch) setiap kali
+    // ganti tab lalu balik lagi -- terasa seperti aplikasi restart. Cuma perlu update state
+    // kalau usernya benar-benar berubah (login/logout/ganti akun).
+    const { data: listener } = supabase.auth.onAuthStateChange((_event, s) => {
+      setSession((prev) => (prev?.user?.id === s?.user?.id ? prev : s))
+    })
     return () => listener.subscription.unsubscribe()
   }, [])
 
