@@ -169,6 +169,13 @@ function barisPersonelLampiran(sprin) {
 
 const LEBAR_KOLOM_LAMPIRAN_DASAR = [650, 650, 3400, 1300, 1500, 3900, 3200]
 
+// Lebar render nyata "KEPOLISIAN NEGARA REPUBLIK INDONESIA" pada size 22
+// (11pt) sudah diverifikasi pas lewat render Word di kop surat depan: lebar
+// isi surat depan (9921 twip) dikurangi indent asli dari XML dokumen sumber
+// (5155 twip) = 4766 twip. Dipakai sebagai acuan untuk menyesuaikan lebar
+// border di tempat lain yang memakai ukuran font berbeda (mis. kop lampiran).
+const LEBAR_TEKS_KOP_INSTANSI_11PT = 4766
+
 function bangunSectionLampiran(sprin, penandatangan) {
   const labelWaktu =
     sprin.tanggalMulai === sprin.tanggalSelesai
@@ -189,11 +196,14 @@ function bangunSectionLampiran(sprin, penandatangan) {
   // sampai margin kanan kertas, bukan cuma setengah lebar portrait lama.
   const LEBAR_KEPALA_LAMPIRAN = LEBAR_KOLOM_LAMPIRAN.reduce((a, b) => a + b, 0)
   const LEBAR_KOLOM_KEPALA = LEBAR_KEPALA_LAMPIRAN / 2
-  // Ruler Word di dalam sel tabel mulai dari 0 di tepi kiri sel itu sendiri --
-  // target "angka 9" (9cm dari tepi kiri sel, sama seperti kop surat depan)
-  // berarti sisa ruang di kanan (indent) = lebar sel - 9cm.
-  const TWIP_PER_CM = 566.9294
-  const INDENT_KOP_LAMPIRAN_NILAI = Math.round(LEBAR_KOLOM_KEPALA - 9 * TWIP_PER_CM)
+  // Border bawah "RESOR CIMAHI" harus pas menempel di teks terpanjang, bukan
+  // kepanjangan -- kop lampiran pakai font lebih kecil (size 20/10pt) daripada
+  // kop surat depan (size 22/11pt), jadi lebar teks acuan diskalakan turun.
+  // +150 twip: sel tabel (lihat sel()) punya margin kanan 80 twip sendiri yang
+  // memakan sisa ruang baris -- tanpa buffer ini "INDONESIA" malah terlempar
+  // ke baris baru (diverifikasi lewat render Word, bukan cuma dihitung).
+  const LEBAR_TEKS_KOP_LAMPIRAN = Math.round(LEBAR_TEKS_KOP_INSTANSI_11PT * (20 / 22)) + 150
+  const INDENT_KOP_LAMPIRAN_NILAI = LEBAR_KOLOM_KEPALA - LEBAR_TEKS_KOP_LAMPIRAN
   const INDENT_KOP_LAMPIRAN = { right: INDENT_KOP_LAMPIRAN_NILAI }
   const kanan = (t, o = {}) => paragraf([teks(t, o)], { alignment: AlignmentType.RIGHT })
   // Sisi kanan kop (blok "LAMPIRAN SURAT PERINTAH...") dibuat mirror dari sisi
