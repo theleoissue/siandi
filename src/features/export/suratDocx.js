@@ -305,15 +305,20 @@ function bangunSectionLampiran(sprin, penandatangan) {
 }
 
 export async function buatBlobSuratDocx(sprin, penandatangan = PENANDATANGAN_DEFAULT) {
-  // Susunan kop mengikuti Surat Perintah Polres Cimahi asli: kode klasifikasi
-  // di pojok kanan atas, lalu 3 baris nama instansi (rata tengah, RESOR CIMAHI
-  // digaris bawah), lambang Tribrata di tengah bawahnya, baru judul + nomor.
+  // Susunan kop mengikuti Surat Perintah Polres Cimahi asli persis, dicek dari
+  // XML dokumen sumber: 3 baris nama instansi bukan literally rata kiri,
+  // melainkan tetap CENTER tapi dengan indent kanan 5155 twips (~9,1cm --
+  // "angka 9" di ruler Word) yang mempersempit kolom pusatnya, jadi teks
+  // kelihatan condong ke kiri walau teknis masih center. Kode klasifikasi di
+  // pojok kanan atas, lambang Tribrata di tengah bawahnya, baru judul + nomor.
+  const INDENT_KOP = { right: 5155 }
   const kop = [
     paragraf([teks(sprin.kodeKlasifikasi || '', { size: 20 })], { alignment: AlignmentType.RIGHT, spacing: { after: 0 } }),
-    paragraf([teks('KEPOLISIAN NEGARA REPUBLIK INDONESIA', { size: 22 })], { alignment: AlignmentType.LEFT, spacing: { after: 0 } }),
-    paragraf([teks('DAERAH JAWA BARAT', { size: 22 })], { alignment: AlignmentType.LEFT, spacing: { after: 0 } }),
+    paragraf([teks('KEPOLISIAN NEGARA REPUBLIK INDONESIA', { size: 22 })], { alignment: AlignmentType.CENTER, indent: INDENT_KOP, spacing: { after: 0 } }),
+    paragraf([teks('DAERAH JAWA BARAT', { size: 22 })], { alignment: AlignmentType.CENTER, indent: INDENT_KOP, spacing: { after: 0 } }),
     paragraf([teks('RESOR CIMAHI', { size: 22 })], {
-      alignment: AlignmentType.LEFT,
+      alignment: AlignmentType.CENTER,
+      indent: INDENT_KOP,
       border: { bottom: { style: BorderStyle.SINGLE, size: 8, color: '000000', space: 1 } },
     }),
     new Paragraph({
