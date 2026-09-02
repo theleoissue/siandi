@@ -360,7 +360,10 @@ export async function buatBlobSuratDocx(sprin, penandatangan = PENANDATANGAN_DEF
   // Margin surat depan (dari dokumen asli, lihat sectionSurat di bawah) --
   // tabel isi & blok tanda tangan dihitung dari sini juga, supaya keduanya
   // otomatis melebar/menyempit kalau margin berubah, bukan lebar tetap.
-  const MARGIN_SURAT = { top: 567, bottom: 283, left: 1134, right: 851 }
+  // header/footer diset lebih kecil dari top/bottom -- kalau dibiarkan default
+  // (708 twip), Word mendorong badan teks turun untuk memberi ruang header,
+  // jadi margin atas kelihatan bukan 1cm sampai kita klik ke area header.
+  const MARGIN_SURAT = { top: 567, bottom: 283, left: 1134, right: 851, header: 200, footer: 200 }
   const LEBAR_ISI_SURAT = 11906 - MARGIN_SURAT.left - MARGIN_SURAT.right
   const KOLOM_ISI = skalakanLebar([1700, 300, 7100], LEBAR_ISI_SURAT)
   const KOLOM_TTD = skalakanLebar([3500, 6100], LEBAR_ISI_SURAT)
