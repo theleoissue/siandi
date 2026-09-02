@@ -542,7 +542,7 @@ export async function buatBlobSuratDocx(sprin, penandatangan = PENANDATANGAN_DEF
                           children: [new TextRun({ children: [PageNumber.CURRENT], font: FONT, size: 20 })],
                         }),
                       ],
-                      { rowSpan: 3, verticalAlign: 'top', margins: { top: 20, bottom: 20, left: 40, right: 220 } },
+                      { rowSpan: 4, verticalAlign: 'top', margins: { top: 20, bottom: 20, left: 40, right: 220 } },
                     ),
                     cellHeader([paragraf([teks('SURAT PERINTAH KAPOLRES CIMAHI', { size: 20 })], { alignment: AlignmentType.DISTRIBUTE })], {
                       columnSpan: 3,
@@ -565,7 +565,7 @@ export async function buatBlobSuratDocx(sprin, penandatangan = PENANDATANGAN_DEF
                   ],
                 }),
                 new TableRow({
-                  children: [kosongHeader(), kosongHeader(), kosongHeader(), kosongHeader()],
+                  children: [kosongHeader(), kosongHeader(), kosongHeader()],
                 }),
               ],
             }),
