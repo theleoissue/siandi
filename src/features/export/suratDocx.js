@@ -56,8 +56,13 @@ const TANPA_GARIS = {
   insideVertical: { style: BorderStyle.NONE },
 }
 
+// Warna hitam dipaksa eksplisit (bukan cuma andalkan default "auto") --
+// beberapa penampil (termasuk pratinjau di web) pernah salah resolve warna
+// default jadi warna tema (emas) untuk elemen underline kalau tidak diset
+// eksplisit di kedua tempat: warna teks DAN warna garis bawahnya sendiri.
 function teks(text, opts = {}) {
-  return new TextRun({ text, font: FONT, size: UKURAN, ...opts })
+  const underline = opts.underline ? { color: '000000', ...opts.underline } : undefined
+  return new TextRun({ text, font: FONT, size: UKURAN, color: '000000', ...opts, ...(underline ? { underline } : {}) })
 }
 
 function paragraf(children, opts = {}) {
