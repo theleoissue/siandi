@@ -12,6 +12,8 @@ import {
   TabStopType,
   BorderStyle,
   PageOrientation,
+  Header,
+  PageNumber,
   Packer,
 } from 'docx'
 import { namaHari, tanggalPanjang } from '../../lib/format'
@@ -148,7 +150,6 @@ function barisPersonelLampiran(sprin) {
 }
 
 const LEBAR_KOLOM_LAMPIRAN = [650, 650, 3400, 1300, 1500, 3900, 3200]
-const JUDUL_KOLOM_LAMPIRAN = ['NO', 'NO', 'NAMA', 'PANGKAT', 'NRP / NIP', 'JABATAN STRUKTUR', 'JABATAN OPERASIONAL']
 
 function bangunSectionLampiran(sprin, penandatangan) {
   const labelWaktu =
@@ -194,18 +195,40 @@ function bangunSectionLampiran(sprin, penandatangan) {
     kepalaKiriKanan,
     ...kosong(1),
     paragraf([teks(`DAFTAR PERSONEL ${(sprin.perihal || '').toUpperCase()}`, { bold: true })], { alignment: AlignmentType.CENTER }),
-    paragraf([teks(labelWaktu, { bold: true })], { alignment: AlignmentType.CENTER }),
+    paragraf([teks(labelWaktu, { bold: true })], {
+      alignment: AlignmentType.CENTER,
+      // Garis pembatas di bawah judul, sesuai dokumen LAMP asli, sebelum masuk tabel.
+      border: { bottom: { style: BorderStyle.SINGLE, size: 6, color: '000000', space: 4 } },
+    }),
     ...kosong(1),
   ]
 
-  const barisJudul = new TableRow({
+  // Header tabel 2 tingkat sesuai LAMP asli: "NO" gabungan URUT+SAT GAS,
+  // "JABATAN" gabungan STRUKTUR+OPERASIONAL.
+  const jSel = (t, opts = {}) =>
+    selTabel([paragraf([teks(t, { bold: true, size: 20 })], { alignment: AlignmentType.CENTER })], {
+      shading: { fill: 'E8E8E8' },
+      verticalAlign: 'center',
+      ...opts,
+    })
+  const barisJudulAtas = new TableRow({
     tableHeader: true,
-    children: JUDUL_KOLOM_LAMPIRAN.map((h, i) =>
-      selTabel([paragraf([teks(h, { bold: true, size: 20 })], { alignment: AlignmentType.CENTER })], {
-        width: { size: LEBAR_KOLOM_LAMPIRAN[i], type: WidthType.DXA },
-        shading: { fill: 'E8E8E8' },
-      }),
-    ),
+    children: [
+      jSel('NO', { columnSpan: 2, width: { size: LEBAR_KOLOM_LAMPIRAN[0] + LEBAR_KOLOM_LAMPIRAN[1], type: WidthType.DXA } }),
+      jSel('NAMA', { rowSpan: 2, width: { size: LEBAR_KOLOM_LAMPIRAN[2], type: WidthType.DXA } }),
+      jSel('PANGKAT', { rowSpan: 2, width: { size: LEBAR_KOLOM_LAMPIRAN[3], type: WidthType.DXA } }),
+      jSel('NRP / NIP', { rowSpan: 2, width: { size: LEBAR_KOLOM_LAMPIRAN[4], type: WidthType.DXA } }),
+      jSel('JABATAN', { columnSpan: 2, width: { size: LEBAR_KOLOM_LAMPIRAN[5] + LEBAR_KOLOM_LAMPIRAN[6], type: WidthType.DXA } }),
+    ],
+  })
+  const barisJudulBawah = new TableRow({
+    tableHeader: true,
+    children: [
+      jSel('URUT', { width: { size: LEBAR_KOLOM_LAMPIRAN[0], type: WidthType.DXA } }),
+      jSel('SAT GAS', { width: { size: LEBAR_KOLOM_LAMPIRAN[1], type: WidthType.DXA } }),
+      jSel('STRUKTUR', { width: { size: LEBAR_KOLOM_LAMPIRAN[5], type: WidthType.DXA } }),
+      jSel('OPERASIONAL', { width: { size: LEBAR_KOLOM_LAMPIRAN[6], type: WidthType.DXA } }),
+    ],
   })
 
   const barisData = barisPersonelLampiran(sprin).map(
@@ -226,7 +249,7 @@ function bangunSectionLampiran(sprin, penandatangan) {
   const tabel = new Table({
     width: { size: LEBAR_KOLOM_LAMPIRAN.reduce((a, b) => a + b, 0), type: WidthType.DXA },
     columnWidths: LEBAR_KOLOM_LAMPIRAN,
-    rows: [barisJudul, ...barisData],
+    rows: [barisJudulAtas, barisJudulBawah, ...barisData],
   })
 
   const ttd = [
@@ -248,6 +271,26 @@ function bangunSectionLampiran(sprin, penandatangan) {
         size: { orientation: PageOrientation.LANDSCAPE, width: 11906, height: 16838 },
         margin: { top: 720, bottom: 720, left: 720, right: 720 },
       },
+      // Halaman pertama beda dari halaman berikutnya (differentFirst di dokumen
+      // asli) -- kop lengkap sudah ada di badan halaman 1, jadi header berulang
+      // di bawah cuma perlu muncul mulai halaman 2 supaya tidak dobel.
+      titlePage: true,
+    },
+    headers: {
+      default: new Header({
+        children: [
+          new Paragraph({
+            alignment: AlignmentType.CENTER,
+            children: [
+              teks('LAMPIRAN SURAT PERINTAH KAPOLRES CIMAHI — ', { size: 18 }),
+              teks(sprin.nomorLengkap, { size: 18 }),
+              teks(' — hal. ', { size: 18 }),
+              new TextRun({ children: [PageNumber.CURRENT], font: FONT, size: 18 }),
+            ],
+          }),
+        ],
+      }),
+      first: new Header({ children: [new Paragraph({ children: [] })] }),
     },
     children: [...kepala, tabel, ...ttd],
   }
@@ -337,7 +380,22 @@ export async function buatBlobSuratDocx(sprin, penandatangan = PENANDATANGAN_DEF
   const sectionSurat = {
     // Margin mengikuti dokumen Sprin asli (twips): atas/kanan ~709, kiri ~799.
     // Bawah diberi ruang wajar (real memakai 0, terlalu mepet untuk cetak).
-    properties: { page: { size: { width: 11906, height: 16838 }, margin: { top: 720, bottom: 720, left: 1134, right: 851 } } },
+    properties: {
+      page: { size: { width: 11906, height: 16838 }, margin: { top: 720, bottom: 720, left: 1134, right: 851 } },
+      // Halaman 1 sudah punya kop lengkap di badan surat -- header berulang di
+      // bawah cuma perlu muncul mulai halaman 2 kalau Dasar/Untuk panjang.
+      titlePage: true,
+    },
+    headers: {
+      default: new Header({
+        children: [
+          paragraf([teks('SURAT PERINTAH KAPOLRES CIMAHI', { size: 20 })], { alignment: AlignmentType.CENTER, spacing: { after: 0 } }),
+          paragraf([teks(`NOMOR : ${sprin.nomorLengkap}`, { size: 20 })], { alignment: AlignmentType.CENTER, spacing: { after: 0 } }),
+          paragraf([teks(`TANGGAL : ${tanggalPanjang(sprin.tanggalMulai).toUpperCase()}`, { size: 20 })], { alignment: AlignmentType.CENTER }),
+        ],
+      }),
+      first: new Header({ children: [new Paragraph({ children: [] })] }),
+    },
     children: [
       ...kop,
       isi,
