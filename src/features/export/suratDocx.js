@@ -348,6 +348,7 @@ function bangunSectionLampiran(sprin, penandatangan) {
         }
         const cellHeader = (children, opts = {}) => new TableCell({ margins: { top: 20, bottom: 20, left: 40, right: 40 }, verticalAlign: 'center', ...opts, children })
         const nilai = (t) => paragraf([teks(t, { size: 18 })], { alignment: AlignmentType.DISTRIBUTE })
+        const kosongHeader = () => cellHeader([paragraf([teks('')])])
         return new Header({
           children: [
             new Table({
@@ -360,9 +361,9 @@ function bangunSectionLampiran(sprin, penandatangan) {
                   children: [
                     cellHeader(
                       [new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ children: [PageNumber.CURRENT], font: FONT, size: 18 })] })],
-                      { rowSpan: 3 },
+                      { rowSpan: 4, verticalAlign: 'top', margins: { top: 20, bottom: 20, left: 40, right: 220 } },
                     ),
-                    cellHeader([paragraf([teks('LAMPIRAN SURAT PERINTAH KAPOLRES CIMAHI', { size: 18 })], { alignment: AlignmentType.CENTER })], {
+                    cellHeader([paragraf([teks('LAMPIRAN SPRIN KAPOLRES CIMAHI', { size: 18 })], { alignment: AlignmentType.DISTRIBUTE })], {
                       columnSpan: 3,
                       width: { size: KOLOM_HEADER[1] + KOLOM_HEADER[2] + KOLOM_HEADER[3], type: WidthType.DXA },
                     }),
@@ -381,6 +382,9 @@ function bangunSectionLampiran(sprin, penandatangan) {
                     cellHeader([paragraf([teks(':', { size: 18 })], { alignment: AlignmentType.CENTER })]),
                     cellHeader([nilai(tanggalPanjang(sprin.tanggalMulai).toUpperCase())]),
                   ],
+                }),
+                new TableRow({
+                  children: [kosongHeader(), kosongHeader(), kosongHeader()],
                 }),
               ],
             }),
