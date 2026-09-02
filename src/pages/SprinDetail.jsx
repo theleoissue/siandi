@@ -8,6 +8,65 @@ import { buatBlobLampiranXlsx } from '../features/export/lampiranXlsx'
 import { unduhBlob, namaFileAman } from '../features/export/downloadBlob'
 import { cariPersonelDb } from '../lib/personelApi'
 
+// docx-preview (dicek langsung dari source code library-nya, versi terbaru
+// 0.4.0) tidak punya penanganan untuk alignment "distribute" sama sekali --
+// nilai itu diteruskan mentah-mentah jadi CSS `text-align: distribute`, yang
+// bukan nilai CSS valid sehingga browser diam-diam mengabaikannya tanpa
+// bekas (tidak bisa dideteksi lagi lewat DOM setelah dirender). Efeknya:
+// baris judul header/TTD/NOMOR/TANGGAL yang di file aslinya stretch rapi,
+// di pratinjau web malah terlihat rata kiri biasa -- tidak merepresentasikan
+// hasil Word yang sebenarnya. Untuk baris-baris itu (dikenali dari teks
+// statisnya, atau nilai yang diawali ": " seperti "NOMOR"/"TANGGAL"/"pada
+// tanggal"), kita hitung manual berapa letter-spacing yang dibutuhkan supaya
+// tetap kelihatan stretch mengisi lebar kolomnya, mendekati tampilan asli.
+const TEKS_JUDUL_STRETCH = new Set([
+  'SURAT PERINTAH KAPOLRES CIMAHI',
+  'LAMPIRAN SPRIN KAPOLRES CIMAHI',
+  'KEPALA KEPOLISIAN RESOR CIMAHI POLDA JABAR',
+])
+// Baris [label][:][nilai] atau [label][nilai] yang nilainya distribute di
+// dokumen asli, dikenali dari teks LABEL di sel sebelumnya (bukan menebak
+// pola isi nilainya, karena isinya beda-beda per Sprin) -- "Dikeluarkan di"
+// sengaja tidak masuk sini karena nilainya (": Cimahi") memang tidak stretch.
+const LABEL_NILAI_STRETCH = new Set(['NOMOR', 'TANGGAL', 'pada tanggal'])
+
+function stretchParagraf(p) {
+  const teks = (p.textContent || '').trim()
+  if (!teks || teks.length < 2) return
+  const lebarTersedia = p.clientWidth
+  if (!lebarTersedia) return
+  const ukur = document.createElement('span')
+  ukur.style.font = window.getComputedStyle(p).font
+  ukur.style.letterSpacing = 'normal'
+  ukur.style.position = 'absolute'
+  ukur.style.visibility = 'hidden'
+  ukur.style.whiteSpace = 'pre'
+  ukur.textContent = teks
+  document.body.appendChild(ukur)
+  const lebarAlami = ukur.getBoundingClientRect().width
+  document.body.removeChild(ukur)
+  if (lebarTersedia > lebarAlami) {
+    p.style.letterSpacing = `${(lebarTersedia - lebarAlami) / teks.length}px`
+    p.style.textAlign = 'left'
+  }
+}
+
+function terapkanStretchManual(wadah) {
+  if (!wadah) return
+  wadah.querySelectorAll('p').forEach((p) => {
+    if (TEKS_JUDUL_STRETCH.has((p.textContent || '').trim())) stretchParagraf(p)
+  })
+  wadah.querySelectorAll('tr').forEach((tr) => {
+    const sel = Array.from(tr.children)
+    if (sel.length < 2) return
+    const labelTeks = (sel[0].textContent || '').trim()
+    if (!LABEL_NILAI_STRETCH.has(labelTeks)) return
+    const selNilai = sel[sel.length - 1]
+    const p = selNilai.querySelector('p') || selNilai
+    stretchParagraf(p)
+  })
+}
+
 // Modal pratinjau: merender blob .docx yang sama persis dengan yang diunduh
 // (surat + lampiran jadi satu), lalu tombol unduh di dalamnya.
 function ModalPratinjau({ blob, namaFile, onTutup, onUnduh }) {
@@ -18,7 +77,25 @@ function ModalPratinjau({ blob, namaFile, onTutup, onUnduh }) {
     let batal = false
     setMerender(true)
     if (wadahRef.current) wadahRef.current.innerHTML = ''
-    renderAsync(blob, wadahRef.current, null, { className: 'docx', inWrapper: true })
+    // experimental:true wajib -- tanpa ini docx-preview merender karakter tab
+    // sebagai spasi lebar tetap, bukan mengikuti posisi tabStop asli, jadi
+    // daftar bernomor (Dasar/Untuk) kelihatan salah rata dibanding Word asli.
+    // useBase64URL supaya lambang Tribrata tetap tampil walau modal dibuka/
+    // ditutup berulang (blob URL bisa kedaluwarsa, data URL tidak).
+    renderAsync(blob, wadahRef.current, null, {
+      className: 'docx',
+      inWrapper: true,
+      experimental: true,
+      useBase64URL: true,
+    })
+      .then(() => {
+        // Tunggu 1 frame supaya layout (lebar kolom, font) sudah settle
+        // sebelum diukur -- kalau langsung diukur di frame yang sama,
+        // clientWidth beberapa elemen masih 0.
+        requestAnimationFrame(() => {
+          if (!batal) terapkanStretchManual(wadahRef.current)
+        })
+      })
       .catch(() => {})
       .finally(() => {
         if (!batal) setMerender(false)
