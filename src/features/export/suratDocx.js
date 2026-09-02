@@ -410,10 +410,13 @@ export async function buatBlobSuratDocx(sprin, penandatangan = PENANDATANGAN_DEF
   })
 
   const sectionSurat = {
-    // Margin mengikuti dokumen Sprin asli (twips): atas/kanan ~709, kiri ~799.
-    // Bawah diberi ruang wajar (real memakai 0, terlalu mepet untuk cetak).
+    // Margin mengikuti dokumen Sprin asli persis: atas 1,25cm / bawah 0,5cm /
+    // kiri 2cm / kanan 1,5cm. Nilai ini jugalah yang membuat INDENT_KOP (5155
+    // twip di bawah) pas menempel di lebar teks "KEPOLISIAN NEGARA REPUBLIK
+    // INDONESIA" -- dengan margin yang salah sebelumnya, garis border kop jadi
+    // kelihatan kepanjangan/over dari teksnya.
     properties: {
-      page: { size: { width: 11906, height: 16838 }, margin: { top: 567, bottom: 567, left: 567, right: 567 } },
+      page: { size: { width: 11906, height: 16838 }, margin: { top: 709, bottom: 283, left: 1134, right: 851 } },
       // Halaman 1 sudah punya kop lengkap di badan surat -- header berulang di
       // bawah cuma perlu muncul mulai halaman 2 kalau Dasar/Untuk panjang.
       titlePage: true,
