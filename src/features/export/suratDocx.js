@@ -162,8 +162,6 @@ function bangunSectionLampiran(sprin, penandatangan) {
       ? `HARI ${namaHari(sprin.tanggalMulai).toUpperCase()} TANGGAL ${tanggalPanjang(sprin.tanggalMulai).toUpperCase()}`
       : `TANGGAL ${tanggalPanjang(sprin.tanggalMulai).toUpperCase()} S.D. ${tanggalPanjang(sprin.tanggalSelesai).toUpperCase()}`
 
-  const kanan = (t, o = {}) => paragraf([teks(t, o)], { alignment: AlignmentType.RIGHT })
-
   // Kepala lampiran meniru dokumen LAMP asli: kop instansi (teks, bukan gambar
   // lambang) di kiri sejajar dengan blok "LAMPIRAN SPRIN..." di kanan --
   // disusun sebagai tabel 2 kolom tanpa garis.
@@ -172,7 +170,18 @@ function bangunSectionLampiran(sprin, penandatangan) {
   // sampai margin kanan kertas, bukan cuma setengah lebar portrait lama.
   const LEBAR_KEPALA_LAMPIRAN = LEBAR_KOLOM_LAMPIRAN.reduce((a, b) => a + b, 0)
   const LEBAR_KOLOM_KEPALA = LEBAR_KEPALA_LAMPIRAN / 2
-  const INDENT_KOP_LAMPIRAN = { right: Math.round(LEBAR_KOLOM_KEPALA * 0.496) }
+  // Ruler Word di dalam sel tabel mulai dari 0 di tepi kiri sel itu sendiri --
+  // target "angka 9" (9cm dari tepi kiri sel, sama seperti kop surat depan)
+  // berarti sisa ruang di kanan (indent) = lebar sel - 9cm.
+  const TWIP_PER_CM = 566.9294
+  const INDENT_KOP_LAMPIRAN_NILAI = Math.round(LEBAR_KOLOM_KEPALA - 9 * TWIP_PER_CM)
+  const INDENT_KOP_LAMPIRAN = { right: INDENT_KOP_LAMPIRAN_NILAI }
+  const kanan = (t, o = {}) => paragraf([teks(t, o)], { alignment: AlignmentType.RIGHT })
+  // Sisi kanan kop (blok "LAMPIRAN SURAT PERINTAH...") dibuat mirror dari sisi
+  // kiri: center + indent kiri sebesar nilai yang sama, supaya blok ini
+  // tertarik rapi ke sisi kanan alih-alih rata kanan mentah. Khusus kop, tidak
+  // dipakai untuk blok tanda tangan di bawah (itu tetap pakai `kanan` biasa).
+  const kananKop = (t, o = {}) => paragraf([teks(t, o)], { alignment: AlignmentType.CENTER, indent: { left: INDENT_KOP_LAMPIRAN_NILAI } })
   const kepalaKiriKanan = new Table({
     width: { size: LEBAR_KEPALA_LAMPIRAN, type: WidthType.DXA },
     columnWidths: [LEBAR_KOLOM_KEPALA, LEBAR_KOLOM_KEPALA],
@@ -194,10 +203,10 @@ function bangunSectionLampiran(sprin, penandatangan) {
           ),
           sel(
             [
-              kanan('LAMPIRAN SURAT PERINTAH'),
-              kanan('KAPOLRES CIMAHI'),
-              kanan(`NOMOR  : ${sprin.nomorLengkap}`),
-              kanan(`TANGGAL  : ${tanggalPanjang(sprin.tanggalMulai).toUpperCase()}`),
+              kananKop('LAMPIRAN SURAT PERINTAH'),
+              kananKop('KAPOLRES CIMAHI'),
+              kananKop(`NOMOR  : ${sprin.nomorLengkap}`),
+              kananKop(`TANGGAL  : ${tanggalPanjang(sprin.tanggalMulai).toUpperCase()}`),
             ],
             LEBAR_KOLOM_KEPALA,
           ),
