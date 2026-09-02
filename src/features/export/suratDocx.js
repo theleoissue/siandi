@@ -209,6 +209,7 @@ function buatTabelInfoLampiran(sprin, lebarTotal, { rataKanan = true } = {}) {
           cellInfo([paragraf([teks('LAMPIRAN SPRIN KAPOLRES CIMAHI', { size: 18 })], { alignment: AlignmentType.DISTRIBUTE })], {
             columnSpan: 3,
             width: { size: KOLOM[1] + KOLOM[2] + KOLOM[3], type: WidthType.DXA },
+            margins: { top: 20, bottom: 20, left: 0, right: 40 },
           }),
         ],
       }),
@@ -289,6 +290,7 @@ function bangunSectionLampiran(sprin, penandatangan) {
           new TableCell({
             borders: TANPA_GARIS,
             width: { size: LEBAR_KOLOM_KEPALA, type: WidthType.DXA },
+            margins: { top: 0, bottom: 0, left: 0, right: 0 },
             children: [buatTabelInfoLampiran(sprin, LEBAR_INFO_KEPALA)],
           }),
         ],
