@@ -509,8 +509,11 @@ export async function buatBlobSuratDocx(sprin, penandatangan = PENANDATANGAN_DEF
       // nomor, tanggal) bergaris pemisah horizontal saja (tanpa garis luar/
       // vertikal). Nilai NOMOR/TANGGAL dibuat rata kiri-kanan per huruf
       // (distribute) supaya melebar rapi mengisi penuh lebar kolomnya.
+      // Ditarik rata kanan, lebar cuma separuh halaman (berhenti sekitar
+      // tengah) -- bukan selebar penuh margin.
       default: (() => {
-        const KOLOM_HEADER = skalakanLebar([450, 1300, 350, 6950], LEBAR_ISI_SURAT)
+        const LEBAR_HEADER_SURAT = Math.round(LEBAR_ISI_SURAT / 2)
+        const KOLOM_HEADER = skalakanLebar([450, 1300, 350, 6950], LEBAR_HEADER_SURAT)
         const TANPA_GARIS_LUAR = {
           top: { style: BorderStyle.NONE },
           bottom: { style: BorderStyle.NONE },
@@ -524,7 +527,8 @@ export async function buatBlobSuratDocx(sprin, penandatangan = PENANDATANGAN_DEF
         return new Header({
           children: [
             new Table({
-              width: { size: LEBAR_ISI_SURAT, type: WidthType.DXA },
+              alignment: AlignmentType.RIGHT,
+              width: { size: LEBAR_HEADER_SURAT, type: WidthType.DXA },
               columnWidths: KOLOM_HEADER,
               borders: TANPA_GARIS_LUAR,
               rows: [
