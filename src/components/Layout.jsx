@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { Outlet } from 'react-router-dom'
 import Sidebar from './Sidebar'
 import Topbar from './Topbar'
@@ -7,12 +8,19 @@ import { useSprinStore } from '../lib/sprinContext'
 export default function Layout({ user, jumlahPersonel, onKeluar }) {
   const menu = MENU_BY_ROLE[user.peran_sistem] ?? []
   const { daftar } = useSprinStore()
+  const [menuTerbuka, setMenuTerbuka] = useState(false)
 
   return (
     <div className="flex min-h-screen" style={{ backgroundColor: '#F4F6F8', color: '#1A2634' }}>
-      <Sidebar menu={menu} jumlahPersonel={jumlahPersonel} jumlahSprin={daftar.length} />
+      <Sidebar
+        menu={menu}
+        jumlahPersonel={jumlahPersonel}
+        jumlahSprin={daftar.length}
+        terbuka={menuTerbuka}
+        onTutup={() => setMenuTerbuka(false)}
+      />
       <div className="flex min-w-0 flex-1 flex-col">
-        <Topbar nama={user.nama} jabatan={user.jabatan} onKeluar={onKeluar} />
+        <Topbar nama={user.nama} jabatan={user.jabatan} onKeluar={onKeluar} onBukaMenu={() => setMenuTerbuka(true)} />
         <Outlet />
       </div>
     </div>
