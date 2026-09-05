@@ -51,6 +51,7 @@ function AppRoutes() {
   }
 
   const user = {
+    id: profil.id,
     nama: profil.pangkat ? `${profil.pangkat} ${profil.nama}` : profil.nama,
     jabatan: profil.jabatan_struktur,
     peran_sistem: profil.peran_sistem,
@@ -76,7 +77,10 @@ function AppRoutes() {
           <Route path="/arsip" element={<Arsip />} />
           <Route path="/riwayat" element={<RiwayatPenugasan />} />
           <Route path="/notifikasi" element={<Notifikasi nrpSaya={user.nrp} />} />
-          <Route path="/data-personel" element={<DataPersonel />} />
+          <Route
+            path="/data-personel"
+            element={<DataPersonel peranSaya={user.peran_sistem} penggunaIdSaya={user.id} />}
+          />
           <Route path="/jenis-kegiatan" element={<JenisKegiatan />} />
           <Route path="/manajemen-pengguna" element={<ManajemenPengguna />} />
           <Route path="/log-aktivitas" element={<LogAktivitas />} />
