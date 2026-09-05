@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { IconInfo, IconCheck, IconPlus, IconFolderPlus } from '../components/icons'
 import { bangunButirUntuk } from '../lib/jenisKegiatanPreset'
@@ -128,6 +128,13 @@ export default function BuatSprin() {
   }, [nomorAgenda, nomorAgendaValid, tahunSprin])
 
   const [kelompok, setKelompok] = useState([])
+  // Dipakai supaya efek recompute-bentrok-di-bawah tidak perlu bergantung ke
+  // `kelompok` langsung (kalau iya, nambah 1 personel akan memicu hitung ulang
+  // bentrok utk SEMUA orang lagi, bukan cuma yang baru -- boros query Supabase).
+  const kelompokRef = useRef(kelompok)
+  useEffect(() => {
+    kelompokRef.current = kelompok
+  }, [kelompok])
   const [kelompokAktifIdx, setKelompokAktifIdx] = useState(0)
   const [pencarianPersonel, setPencarianPersonel] = useState('')
   const [filterSatuanFungsi, setFilterSatuanFungsi] = useState('')
@@ -152,7 +159,10 @@ export default function BuatSprin() {
       .then((p) => {
         if (dibatalkan) return
         setPreset(p)
-        setKelompok((p?.kelompokBaku ?? []).map((k) => ({ ...k, personel: [] })))
+        // baku:true dikunci -- sifatnya berasal dari struktur satgas resmi jenis
+        // kegiatan ini (lihat jenisKegiatanApi.js), tidak boleh diubah bebas lewat
+        // UI supaya tidak dipakai untuk menghindari cek bentrok yang lebih ketat.
+        setKelompok((p?.kelompokBaku ?? []).map((k) => ({ ...k, personel: [], baku: true })))
         setKelompokAktifIdx(0)
         setBentrokPerNrp({})
         setTampilkanKonfirmasiBentrok(false)
@@ -190,12 +200,46 @@ export default function BuatSprin() {
     }
   }, [pencarianPersonel, filterSatuanFungsi])
 
+  // BR-06/08: kalau tanggal/jam apel/durasi diubah SETELAH ada personel yang
+  // sudah ditempatkan, status bentrok mereka jadi basi (masih pakai nilai
+  // lama). Hitung ulang semua begitu salah satu field ini berubah -- sengaja
+  // tidak bergantung ke `kelompok` di deps (baca lewat ref) supaya menambah
+  // satu personel tidak memicu hitung ulang untuk semua orang lagi.
+  useEffect(() => {
+    let dibatalkan = false
+    const daftar = kelompokRef.current
+    if (daftar.some((k) => k.personel.some((p) => p.nrp))) {
+      hitungUlangBentrokSemua(daftar).then((hasil) => {
+        if (!dibatalkan) setBentrokPerNrp(hasil)
+      })
+    }
+    return () => {
+      dibatalkan = true
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tanggalMulai, tanggalSelesai, jamApel, durasiJam])
+
   const totalPersonel = kelompok.reduce((acc, k) => acc + k.personel.length, 0)
   const kelompokAktif = kelompok[kelompokAktifIdx]
   // BR-05: jalur non-KUATPERS cuma ditawarkan kalau pencarian NRP/nama tidak
   // menemukan hasil sama sekali -- bukan pilihan default.
   const bisaTambahNonKuatpers =
     !sedangMencari && !filterSatuanFungsi && pencarianPersonel.trim().length >= 2 && hasilPencarian.length === 0
+
+  // Ganti jenis kegiatan me-reset seluruh susunan kelompok ke kelompok baku
+  // jenis yang baru (struktur satgas beda tiap jenis) -- kalau sudah ada
+  // personel ditempatkan, itu berarti kerja yang hilang diam-diam. Konfirmasi
+  // dulu supaya tidak kehapus tanpa sadar.
+  function gantiJenisKegiatan(nilaiBaru) {
+    if (nilaiBaru === jenisKegiatan) return
+    if (totalPersonel > 0) {
+      const lanjut = window.confirm(
+        `Mengganti jenis kegiatan akan menghapus susunan kelompok dan ${totalPersonel} personel yang sudah ditempatkan (struktur kelompok mengikuti jenis kegiatan baru). Lanjutkan?`,
+      )
+      if (!lanjut) return
+    }
+    setJenisKegiatan(nilaiBaru)
+  }
 
   function tambahKelompok(sifat) {
     const nama = sifat === 'pengendali' ? 'KELOMPOK BARU' : `TIM ${kelompok.length + 1}`
@@ -208,7 +252,11 @@ export default function BuatSprin() {
   }
 
   function ubahSifatKelompokAktif(sifat) {
-    setKelompok((prev) => prev.map((k, i) => (i === kelompokAktifIdx ? { ...k, sifat } : k)))
+    const kelompokBaru = kelompok.map((k, i) => (i === kelompokAktifIdx ? { ...k, sifat } : k))
+    setKelompok(kelompokBaru)
+    // Sifat menentukan ketelitian cek bentrok (BR-06/08) -- kalau sudah ada
+    // personel ditempatkan, hitung ulang semua supaya statusnya ikut sifat baru.
+    hitungUlangBentrokSemua(kelompokBaru).then((hasil) => setBentrokPerNrp(hasil))
   }
 
   function ubahKelompokBesarAktif(kelompokBesar) {
@@ -220,6 +268,38 @@ export default function BuatSprin() {
   // sifat kelompok berbeda, sehingga hasil cek bentroknya juga bisa berbeda (BR-08).
   function kunciBentrok(idxKelompok, nrp) {
     return `${idxKelompok}:${nrp}`
+  }
+
+  // Hitung ulang bentrok untuk SEMUA personel yang sudah ditempatkan di
+  // `daftarKelompok`, dipakai saat tanggal/jam apel/durasi/sifat berubah
+  // setelah personel ada -- tanpa ini status bentrok jadi basi (masih
+  // mencerminkan nilai lama saat orang itu pertama ditempatkan).
+  async function hitungUlangBentrokSemua(daftarKelompok) {
+    const tugas = []
+    daftarKelompok.forEach((k, ki) => {
+      k.personel.forEach((p) => {
+        if (!p.nrp) return
+        tugas.push(
+          ambilRiwayatPenugasanNrp(p.nrp)
+            .then((riwayat) => {
+              const konflik = cekBentrok(
+                {
+                  tanggalMulai,
+                  tanggalSelesai,
+                  jamApel,
+                  durasiJam: durasiJam ? Number(durasiJam) : (preset?.perkiraanJam ?? undefined),
+                  sifat: k.sifat === 'pengendali' ? 'PENGENDALI' : 'PELAKSANA',
+                },
+                riwayat,
+              )
+              return [kunciBentrok(ki, p.nrp), konflik]
+            })
+            .catch(() => null),
+        )
+      })
+    })
+    const hasil = await Promise.all(tugas)
+    return Object.fromEntries(hasil.filter(Boolean))
   }
 
   function sudahAdaDiKelompok(k, personel) {
@@ -448,7 +528,7 @@ export default function BuatSprin() {
                 className="w-full rounded px-3 py-2 text-sm outline-none focus:ring-2"
                 style={inputStyle}
                 value={jenisKegiatan}
-                onChange={(e) => setJenisKegiatan(e.target.value)}
+                onChange={(e) => gantiJenisKegiatan(e.target.value)}
               >
                 {['Operasi', 'Pengamanan', 'Lainnya'].map((rumpun) => {
                   const dalamRumpun = jenisOptions.filter((o) => o.rumpun === rumpun)
@@ -789,8 +869,10 @@ export default function BuatSprin() {
               <div className="flex gap-2">
                 <button
                   type="button"
+                  disabled={kelompokAktif.baku}
+                  title={kelompokAktif.baku ? 'Sifat kelompok baku mengikuti struktur satgas resmi jenis kegiatan ini, tidak bisa diubah bebas.' : undefined}
                   onClick={() => ubahSifatKelompokAktif('pelaksana')}
-                  className="flex-1 rounded px-2 py-1 text-xs font-semibold"
+                  className="flex-1 rounded px-2 py-1 text-xs font-semibold disabled:cursor-not-allowed disabled:opacity-60"
                   style={{
                     backgroundColor: kelompokAktif.sifat === 'pelaksana' ? '#67788C' : '#FFFFFF',
                     color: kelompokAktif.sifat === 'pelaksana' ? '#FFFFFF' : '#67788C',
@@ -801,8 +883,10 @@ export default function BuatSprin() {
                 </button>
                 <button
                   type="button"
+                  disabled={kelompokAktif.baku}
+                  title={kelompokAktif.baku ? 'Sifat kelompok baku mengikuti struktur satgas resmi jenis kegiatan ini, tidak bisa diubah bebas.' : undefined}
                   onClick={() => ubahSifatKelompokAktif('pengendali')}
-                  className="flex-1 rounded px-2 py-1 text-xs font-semibold"
+                  className="flex-1 rounded px-2 py-1 text-xs font-semibold disabled:cursor-not-allowed disabled:opacity-60"
                   style={{
                     backgroundColor: kelompokAktif.sifat === 'pengendali' ? '#67788C' : '#FFFFFF',
                     color: kelompokAktif.sifat === 'pengendali' ? '#FFFFFF' : '#67788C',
@@ -812,6 +896,11 @@ export default function BuatSprin() {
                   pengendali
                 </button>
               </div>
+              {kelompokAktif.baku && (
+                <div className="text-xs" style={{ color: '#67788C' }}>
+                  Kelompok baku — sifat mengikuti struktur satgas resmi, tidak bisa diubah.
+                </div>
+              )}
               {kelompokAktif.personel.length > 0 && (
                 <ul className="space-y-1 pt-1 text-xs">
                   {kelompokAktif.personel.map((p) => {
