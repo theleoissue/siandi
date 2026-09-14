@@ -57,6 +57,18 @@ export async function ambilDaftarPersonel({ kataKunci = '', satuanFungsi = '', h
 // tidak butuh akun auth, dan sudah dipakai lewat jalur "tambah manual" saat
 // Buat Sprin (lihat sprinApi.js). Di sini jadi direktori mandiri: sekali
 // didaftarkan, bisa dipakai berkali-kali di Sprin manapun.
+// Total gabungan roster KUATPERS + non-KUATPERS -- dipakai buat kartu ringkasan
+// (Dashboard, sidebar), jadi cukup hitung baris (head: true, tanpa tarik data).
+export async function ambilTotalPersonelAktif() {
+  const [kuatpers, nonKuatpers] = await Promise.all([
+    supabase.from('pengguna').select('id', { count: 'exact', head: true }).eq('status_aktif', true),
+    supabase.from('personel_non_kuatpers').select('id', { count: 'exact', head: true }),
+  ])
+  if (kuatpers.error) throw kuatpers.error
+  if (nonKuatpers.error) throw nonKuatpers.error
+  return (kuatpers.count ?? 0) + (nonKuatpers.count ?? 0)
+}
+
 export async function ambilDaftarNonKuatpers({ kataKunci = '', halaman = 0, ukuranHalaman = 25 } = {}) {
   const q = bersihkanKataKunci(kataKunci)
   let query = supabase

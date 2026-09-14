@@ -15,7 +15,6 @@ import LogAktivitas from './pages/LogAktivitas'
 import PenugasanSaya from './pages/PenugasanSaya'
 import Login from './pages/Login'
 import { SprinStoreProvider } from './lib/SprinStore'
-import { PERSONEL_CONTOH } from './lib/personelContoh'
 import { AuthProvider } from './lib/AuthContext'
 import { useAuth, keluar } from './lib/auth'
 
@@ -63,7 +62,7 @@ function AppRoutes() {
       <Routes>
         <Route
           element={
-            <Layout user={user} jumlahPersonel={PERSONEL_CONTOH.length} onKeluar={keluar} />
+            <Layout user={user} onKeluar={keluar} />
           }
         >
           <Route

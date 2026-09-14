@@ -1,24 +1,43 @@
-import { useMemo } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { IconChevronRight } from '../components/icons'
 import { useSprinStore, STATUS_BADGE_STYLE } from '../lib/sprinContext'
-import { PERSONEL_CONTOH } from '../lib/personelContoh'
+import { ambilTotalPersonelAktif } from '../lib/personelApi'
 
-const BEBAN_PENUGASAN = [
-  { nama: 'KOMPOL SAEFUL BAHRI, S. Pd. I.', jumlah: 7 },
-  { nama: 'KOMPOL ZULKARNAEN.,S.H.,S.I.K.,M.I.K.', jumlah: 7 },
-  { nama: '84121923', jumlah: 6 },
-  { nama: 'AKP ENDANG MULYANA, S.IP., M.Si.', jumlah: 5 },
-  { nama: 'AKP TAUFIK, S.H.', jumlah: 5 },
-  { nama: 'AIPTU I WAYAN ISMANTA', jumlah: 5 },
-  { nama: 'AIPDA DADANG SULAEMAN', jumlah: 5 },
-]
+const TANGGAL_HARI_INI = new Date().toLocaleDateString('id-ID', {
+  day: 'numeric',
+  month: 'long',
+  year: 'numeric',
+})
 
-const MAKS_BEBAN = Math.max(...BEBAN_PENUGASAN.map((b) => b.jumlah))
+// Top-N personel yang paling sering jadi pelaksana (bukan pimpinan/pengendali)
+// di Sprin yang sudah Terbit -- pengganti live untuk daftar dummy lama.
+function hitungBebanPenugasan(daftar, maks = 7) {
+  const hitung = new Map()
+  for (const s of daftar) {
+    if (s.status !== 'Terbit') continue
+    for (const k of s.kelompok) {
+      if (k.sifat === 'pengendali') continue
+      for (const p of k.personel) {
+        const kunci = p.nrp || p.nama
+        const label = `${p.pangkat ? `${p.pangkat} ` : ''}${p.nama}`
+        const entri = hitung.get(kunci) ?? { nama: label, jumlah: 0 }
+        entri.jumlah += 1
+        hitung.set(kunci, entri)
+      }
+    }
+  }
+  return [...hitung.values()].sort((a, b) => b.jumlah - a.jumlah).slice(0, maks)
+}
 
 export default function Dashboard() {
   const { daftar } = useSprinStore()
   const navigate = useNavigate()
+  const [totalPersonel, setTotalPersonel] = useState(null)
+
+  useEffect(() => {
+    ambilTotalPersonelAktif().then(setTotalPersonel).catch(() => {})
+  }, [])
 
   const statCards = useMemo(() => {
     const terbit = daftar.filter((s) => s.status === 'Terbit').length
@@ -26,11 +45,17 @@ export default function Dashboard() {
     return [
       { label: 'Sprin terbit', value: String(terbit), color: '#1F7A4D' },
       { label: 'Menunggu persetujuan', value: String(menunggu), color: '#8A6100' },
-      { label: 'Personel terdata', value: PERSONEL_CONTOH.length.toLocaleString('id-ID'), color: '#0E1B2C' },
+      {
+        label: 'Personel terdata',
+        value: totalPersonel === null ? '…' : totalPersonel.toLocaleString('id-ID'),
+        color: '#0E1B2C',
+      },
     ]
-  }, [daftar])
+  }, [daftar, totalPersonel])
 
   const sprinTerbaru = daftar.slice(0, 6)
+  const bebanPenugasan = useMemo(() => hitungBebanPenugasan(daftar), [daftar])
+  const maksBeban = Math.max(1, ...bebanPenugasan.map((b) => b.jumlah))
 
   return (
     <main className="flex-1 overflow-y-auto p-5">
@@ -39,7 +64,7 @@ export default function Dashboard() {
           Dashboard
         </h1>
         <p className="mt-1 text-sm" style={{ color: '#67788C' }}>
-          Rekapitulasi surat perintah dan sebaran penugasan · 9 Agustus 2026
+          Rekapitulasi surat perintah dan sebaran penugasan · {TANGGAL_HARI_INI}
         </p>
       </div>
 
@@ -93,29 +118,35 @@ export default function Dashboard() {
 
         <div className="rounded-lg p-4" style={{ backgroundColor: '#FFFFFF', border: '1px solid #DDE3EA' }}>
           <div className="mb-1 text-sm font-semibold" style={{ color: '#0E1B2C' }}>
-            Beban penugasan aktif
+            Personel paling sering ditugaskan
           </div>
           <div className="mb-3 text-xs" style={{ color: '#67788C' }}>
-            Hanya kelompok pelaksana, di luar operasi
+            Hanya kelompok pelaksana (di luar pimpinan/pengendali), Sprin Terbit
           </div>
-          <div className="space-y-2.5">
-            {BEBAN_PENUGASAN.map((b) => (
-              <div key={b.nama}>
-                <div className="mb-1 flex justify-between gap-2 text-xs">
-                  <span className="truncate">{b.nama}</span>
-                  <span style={{ color: '#67788C', fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Consolas, monospace' }}>
-                    {b.jumlah}
-                  </span>
+          {bebanPenugasan.length === 0 ? (
+            <p className="text-xs" style={{ color: '#67788C' }}>
+              Belum ada data penugasan.
+            </p>
+          ) : (
+            <div className="space-y-2.5">
+              {bebanPenugasan.map((b) => (
+                <div key={b.nama}>
+                  <div className="mb-1 flex justify-between gap-2 text-xs">
+                    <span className="truncate">{b.nama}</span>
+                    <span style={{ color: '#67788C', fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Consolas, monospace' }}>
+                      {b.jumlah}
+                    </span>
+                  </div>
+                  <div className="h-1.5 rounded-full" style={{ backgroundColor: '#EEF1F5' }}>
+                    <div
+                      className="h-1.5 rounded-full"
+                      style={{ width: `${(b.jumlah / maksBeban) * 100}%`, backgroundColor: '#C8A24A' }}
+                    />
+                  </div>
                 </div>
-                <div className="h-1.5 rounded-full" style={{ backgroundColor: '#EEF1F5' }}>
-                  <div
-                    className="h-1.5 rounded-full"
-                    style={{ width: `${(b.jumlah / MAKS_BEBAN) * 100}%`, backgroundColor: '#C8A24A' }}
-                  />
-                </div>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          )}
         </div>
       </div>
     </main>

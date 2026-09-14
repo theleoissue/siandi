@@ -1,14 +1,20 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Outlet } from 'react-router-dom'
 import Sidebar from './Sidebar'
 import Topbar from './Topbar'
 import { MENU_BY_ROLE } from '../lib/menu'
 import { useSprinStore } from '../lib/sprinContext'
+import { ambilTotalPersonelAktif } from '../lib/personelApi'
 
-export default function Layout({ user, jumlahPersonel, onKeluar }) {
+export default function Layout({ user, onKeluar }) {
   const menu = MENU_BY_ROLE[user.peran_sistem] ?? []
   const { daftar } = useSprinStore()
   const [menuTerbuka, setMenuTerbuka] = useState(false)
+  const [jumlahPersonel, setJumlahPersonel] = useState(0)
+
+  useEffect(() => {
+    ambilTotalPersonelAktif().then(setJumlahPersonel).catch(() => {})
+  }, [])
 
   return (
     <div className="flex min-h-screen" style={{ backgroundColor: '#F4F6F8', color: '#1A2634' }}>

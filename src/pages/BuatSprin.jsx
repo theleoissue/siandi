@@ -302,6 +302,21 @@ export default function BuatSprin() {
     return Object.fromEntries(hasil.filter(Boolean))
   }
 
+  function ubahJabatanOperasional(kelompokIdx, personel, jabatanOperasional) {
+    setKelompok((prev) =>
+      prev.map((k, i) =>
+        i === kelompokIdx
+          ? {
+              ...k,
+              personel: k.personel.map((p) =>
+                (personel.nrp ? p.nrp === personel.nrp : p.tempId === personel.tempId) ? { ...p, jabatanOperasional } : p,
+              ),
+            }
+          : k,
+      ),
+    )
+  }
+
   function sudahAdaDiKelompok(k, personel) {
     return personel.nrp
       ? k.personel.some((p) => p.nrp === personel.nrp)
@@ -314,7 +329,13 @@ export default function BuatSprin() {
     setKelompok((prev) =>
       prev.map((k, i) =>
         i === kelompokAktifIdx && !sudahAdaDiKelompok(k, personel)
-          ? { ...k, personel: [...k.personel, { ...personel, jabatanOperasional: k.nama }] }
+          ? {
+              ...k,
+              personel: [
+                ...k.personel,
+                { ...personel, jabatanOperasional: k.personel.length === 0 ? `PADAL ${k.nama}` : 'ANGGOTA' },
+              ],
+            }
           : k,
       ),
     )
@@ -921,6 +942,13 @@ export default function BuatSprin() {
                             {p.nrp ?? '—'}
                           </span>
                         </div>
+                        <input
+                          placeholder="ANGGOTA"
+                          className="mt-1 w-full rounded px-2 py-1 text-xs outline-none focus:ring-2"
+                          style={inputStyle}
+                          value={p.jabatanOperasional ?? ''}
+                          onChange={(e) => ubahJabatanOperasional(kelompokAktifIdx, p, e.target.value)}
+                        />
                         {konflik.length > 0 && (
                           <div className="mt-0.5" style={{ color: menonjol ? '#B3261E' : '#67788C' }}>
                             {menonjol ? '⚠ Bentrok: ' : 'Catatan: '}
