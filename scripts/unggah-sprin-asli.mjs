@@ -107,13 +107,21 @@ async function main() {
     const bytes = readFileSync(fullPath)
     const storagePath = `${nomorAgenda}.pdf`
 
+    // upsert:true sengaja TIDAK dipakai -- kombinasinya dengan RLS storage
+    // custom di project ini bikin request ditolak walau izinnya sebenarnya
+    // benar (upsert memicu jalur SQL berbeda di storage-api). Karena ini
+    // upload pertama kali per file, insert biasa sudah cukup; kalau skrip
+    // diulang dan filenya sudah ada, error "sudah ada" dianggap sukses (skip).
     const { error: upErr } = await supabase.storage
       .from('sprin-asli')
-      .upload(storagePath, bytes, { contentType: 'application/pdf', upsert: true })
-    if (upErr) {
+      .upload(storagePath, bytes, { contentType: 'application/pdf' })
+    if (upErr && !/already exists|Duplicate/i.test(upErr.message)) {
       console.log('GAGAL upload nomor', nomorAgenda, '-', upErr.message)
       gagal++
       continue
+    }
+    if (upErr) {
+      console.log('Sudah pernah terunggah, lanjut tautkan saja:', nomorAgenda)
     }
 
     const { error: dbErr, count } = await supabase
