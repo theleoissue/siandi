@@ -124,17 +124,17 @@ async function main() {
       console.log('Sudah pernah terunggah, lanjut tautkan saja:', nomorAgenda)
     }
 
-    const { error: dbErr, count } = await supabase
-      .from('surat_perintah')
-      .update({ file_asli_path: storagePath }, { count: 'exact' })
-      .eq('nomor_agenda', nomorAgenda)
+    // Lewat RPC (bukan update langsung) -- surat_perintah cuma punya policy
+    // UPDATE untuk alur draf/persetujuan, tidak untuk menautkan arsip ke
+    // Sprin yang sudah Terbit.
+    const { error: dbErr } = await supabase.rpc('tetapkan_file_asli_sprin', {
+      p_nomor_agenda: nomorAgenda,
+      p_file_asli_path: storagePath,
+    })
     if (dbErr) {
       console.log('GAGAL tautkan nomor', nomorAgenda, '-', dbErr.message)
       gagal++
       continue
-    }
-    if (!count) {
-      console.log('PERINGATAN: nomor_agenda', nomorAgenda, 'tidak ketemu di surat_perintah (file tetap terunggah)')
     }
     console.log('OK', nomorAgenda, '->', storagePath)
     berhasil++
