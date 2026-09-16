@@ -457,3 +457,10 @@ export async function tetapkanPenandatanganDb(sprinId, penandatanganId) {
   })
   if (error) throw new Error(error.message)
 }
+
+// Hapus permanen -- semua status, termasuk TERBIT. Izin peran dicek di dalam
+// RPC itu sendiri (KABAG_OPS/KASUBBAG_BINOPS/PAURMIN/STAF_ADMIN), bukan di sini.
+export async function hapusSprinDb(sprinId) {
+  const { error } = await supabase.rpc('hapus_surat_perintah', { p_surat_perintah_id: sprinId })
+  if (error) throw new Error(error.message)
+}

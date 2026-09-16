@@ -9,6 +9,7 @@ import {
   kembalikanSprinDb,
   tandaiNotifikasiDibacaDb,
   tetapkanPenandatanganDb,
+  hapusSprinDb,
 } from './sprinApi'
 
 export function SprinStoreProvider({ children }) {
@@ -57,6 +58,11 @@ export function SprinStoreProvider({ children }) {
 
   async function tetapkanPenandatangan(id, penandatanganId) {
     await tetapkanPenandatanganDb(id, penandatanganId)
+    await muatUlang()
+  }
+
+  async function hapusSprin(id) {
+    await hapusSprinDb(id)
     await muatUlang()
   }
 
@@ -121,6 +127,7 @@ export function SprinStoreProvider({ children }) {
         setujuiSprin,
         kembalikanSprin,
         tetapkanPenandatangan,
+        hapusSprin,
         cariSprin,
         notifikasiUntuk,
         tandaiNotifikasiDibaca,

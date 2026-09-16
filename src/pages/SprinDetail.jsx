@@ -286,13 +286,14 @@ function IconX(props) {
 export default function SprinDetail({ peranSaya }) {
   const { id } = useParams()
   const navigate = useNavigate()
-  const { cariSprin, setujuiSprin, kembalikanSprin, belumPernahDimuat } = useSprinStore()
+  const { cariSprin, setujuiSprin, kembalikanSprin, hapusSprin, belumPernahDimuat } = useSprinStore()
   const [tab, setTab] = useState('isi')
   const [catatan, setCatatan] = useState('')
   const [memproses, setMemproses] = useState(false)
   const [pesanError, setPesanError] = useState('')
   const [mengunduh, setMengunduh] = useState('')
   const [pratinjauBlob, setPratinjauBlob] = useState(null)
+  const [menghapus, setMenghapus] = useState(false)
 
   const sprin = cariSprin(id)
   if (!sprin) {
@@ -313,6 +314,7 @@ export default function SprinDetail({ peranSaya }) {
   }
 
   const bisaMemutuskan = peranSaya === 'KABAG_OPS' && sprin.status === 'Menunggu Persetujuan'
+  const bisaHapus = ['KABAG_OPS', 'KASUBBAG_BINOPS', 'PAURMIN', 'STAF_ADMIN'].includes(peranSaya)
   // Bisa dipratinjau/cetak kalau ada isinya: entah detail surat lengkap
   // (draf/terbit yang diisi via SIANDI) atau punya daftar personel (mis. Sprin
   // arsip yang lampirannya lengkap meski isi suratnya belum diambil dari sumber).
@@ -340,6 +342,22 @@ export default function SprinDetail({ peranSaya }) {
       setPesanError(err.message ?? 'Gagal mengembalikan Sprin.')
     } finally {
       setMemproses(false)
+    }
+  }
+
+  async function handleHapus() {
+    const yakin = window.confirm(
+      `Hapus permanen "${sprin.nomorLengkap}"?\n\nIni akan menghapus surat, seluruh kelompok, dan penempatan personelnya. Tidak bisa dibatalkan.`,
+    )
+    if (!yakin) return
+    setMenghapus(true)
+    setPesanError('')
+    try {
+      await hapusSprin(sprin.id)
+      navigate('/daftar-sprin')
+    } catch (err) {
+      setPesanError(err.message ?? 'Gagal menghapus Sprin.')
+      setMenghapus(false)
     }
   }
 
@@ -400,12 +418,25 @@ export default function SprinDetail({ peranSaya }) {
                 {sprin.nomorLengkap}
               </div>
             </div>
-            <span
-              className="inline-block whitespace-nowrap rounded px-2 py-0.5 text-xs font-semibold"
-              style={STATUS_BADGE_STYLE[sprin.status]}
-            >
-              {sprin.status}
-            </span>
+            <div className="flex shrink-0 items-start gap-2">
+              <span
+                className="inline-block whitespace-nowrap rounded px-2 py-0.5 text-xs font-semibold"
+                style={STATUS_BADGE_STYLE[sprin.status]}
+              >
+                {sprin.status}
+              </span>
+              {bisaHapus && (
+                <button
+                  type="button"
+                  onClick={handleHapus}
+                  disabled={menghapus}
+                  className="whitespace-nowrap rounded px-2 py-0.5 text-xs font-semibold disabled:opacity-40"
+                  style={{ border: '1px solid #8FA3BB', color: '#FFB4A8' }}
+                >
+                  {menghapus ? 'Menghapus…' : 'Hapus'}
+                </button>
+              )}
+            </div>
           </div>
           {adaIsiUntukDicetak && (
             <div className="mt-4 flex flex-wrap gap-2">
