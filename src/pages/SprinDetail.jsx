@@ -7,6 +7,7 @@ import { buatBlobSuratDocx } from '../features/export/suratDocx'
 import { buatBlobLampiranXlsx } from '../features/export/lampiranXlsx'
 import { unduhBlob, namaFileAman } from '../features/export/downloadBlob'
 import { cariPersonelDb } from '../lib/personelApi'
+import { ambilBlobFileAsli } from '../lib/sprinApi'
 
 // docx-preview (dicek langsung dari source code library-nya, versi terbaru
 // 0.4.0) tidak punya penanganan untuk alignment "distribute" sama sekali --
@@ -390,6 +391,19 @@ export default function SprinDetail({ peranSaya }) {
     }
   }
 
+  async function handleUnduhAsli() {
+    setMengunduh('asli')
+    setPesanError('')
+    try {
+      const blob = await ambilBlobFileAsli(sprin.fileAsliPath)
+      unduhBlob(blob, `${namaFileAman(sprin.nomorLengkap)}_ASLI.pdf`)
+    } catch (err) {
+      setPesanError(err.message ?? 'Gagal mengunduh Sprin asli.')
+    } finally {
+      setMengunduh('')
+    }
+  }
+
   return (
     <main className="flex-1 overflow-y-auto p-5">
       <button
@@ -463,6 +477,17 @@ export default function SprinDetail({ peranSaya }) {
               >
                 <IconDownload size={14} /> {mengunduh === 'lampiran' ? 'Membuat…' : 'Unduh lampiran (.xlsx)'}
               </button>
+              {sprin.status === 'Terbit' && sprin.fileAsliPath && (
+                <button
+                  type="button"
+                  onClick={handleUnduhAsli}
+                  disabled={Boolean(mengunduh)}
+                  className="inline-flex items-center gap-2 rounded px-3 py-1.5 text-xs font-semibold disabled:opacity-40"
+                  style={{ backgroundColor: '#FFFFFF', color: '#0E1B2C' }}
+                >
+                  <IconDownload size={14} /> {mengunduh === 'asli' ? 'Mengunduh…' : 'Unduh Sprin asli (.pdf)'}
+                </button>
+              )}
               {sprin.status !== 'Terbit' && (
                 <span className="self-center text-xs" style={{ color: '#8FA3BB' }}>
                   Pratinjau draf — belum sah sampai diterbitkan.

@@ -107,6 +107,7 @@ function petaSprin(row) {
   return {
     id: row.id,
     nomorLengkap: row.nomor_lengkap,
+    fileAsliPath: row.file_asli_path ?? undefined,
     perihal: row.perihal,
     pertimbangan: pertimbanganFinal,
     lokasi: row.lokasi,
@@ -141,7 +142,7 @@ function petaSprin(row) {
 
 const SELECT_SPRIN_LENGKAP = `
   id, nomor_lengkap, perihal, pertimbangan, lokasi, tanggal_mulai, tanggal_selesai,
-  jam_apel, status, catatan_pemeriksaan, butir_untuk, penandatangan_id,
+  jam_apel, status, catatan_pemeriksaan, butir_untuk, penandatangan_id, file_asli_path,
   jenis_kegiatan:jenis_kegiatan_id (
     nama, kode_klasifikasi, wajib_isi_durasi_manual,
     jenis_kegiatan_dasar_hukum ( urutan, dasar_hukum_baku ( teks ) ),
@@ -463,4 +464,14 @@ export async function tetapkanPenandatanganDb(sprinId, penandatanganId) {
 export async function hapusSprinDb(sprinId) {
   const { error } = await supabase.rpc('hapus_surat_perintah', { p_surat_perintah_id: sprinId })
   if (error) throw new Error(error.message)
+}
+
+// PDF hasil scan dokumen fisik asli (bukan hasil generate SIANDI) -- cuma ada
+// untuk Sprin yang diimpor dari arsip historis (lihat scripts/unggah-sprin-asli.mjs).
+// Bucket privat, jadi ambil isinya lewat client yang sudah lolos RLS
+// storage.objects, bukan lewat URL publik.
+export async function ambilBlobFileAsli(fileAsliPath) {
+  const { data, error } = await supabase.storage.from('sprin-asli').download(fileAsliPath)
+  if (error) throw new Error(error.message)
+  return data
 }
