@@ -56,7 +56,12 @@ export function cekBentrok(kandidat, riwayat) {
         if (!tglRiwayat.has(t)) continue
         const w1 = jendelaJam(t, jamApel, durasiJam)
         const w2 = jendelaJam(t, r.jamApel, r.durasiJam)
-        if (!w1 || !w2 || beririsan(w1, w2)) {
+        // Kalau salah satu sisi tidak punya jam apel/durasi jelas (mis. GATUR
+        // "pagi dan sore" seharian, tanpa jam apel tunggal), jangan dianggap
+        // bentrok -- tidak ada dasar buat bilang jamnya beririsan. Cuma
+        // ditandai bentrok kalau jendela jam KEDUA sisi diketahui dan
+        // memang beririsan.
+        if (w1 && w2 && beririsan(w1, w2)) {
           konflik.push({ ...r, tanggalBentrok: t, menonjol: true })
         }
       }
