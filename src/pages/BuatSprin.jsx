@@ -149,6 +149,10 @@ export default function BuatSprin() {
   const [hasilPencarian, setHasilPencarian] = useState([])
   const [sedangMencari, setSedangMencari] = useState(false)
   const [formNonKuatpers, setFormNonKuatpers] = useState(null)
+  // Peringatan bentrok untuk hasil pencarian (belum ditambahkan ke kelompok),
+  // dikunci per NRP -- supaya kelihatan LANGSUNG saat cari, tanpa harus
+  // menambahkan personel dulu baru tahu bentrok atau tidak.
+  const [bentrokHasilPencarian, setBentrokHasilPencarian] = useState({})
 
   // Muat preset dari DB tiap kali jenis kegiatan berganti, lalu reset susunan
   // kelompok ke kelompok baku jenis itu (struktur satgas beda tiap jenis).
@@ -162,7 +166,16 @@ export default function BuatSprin() {
         // baku:true dikunci -- sifatnya berasal dari struktur satgas resmi jenis
         // kegiatan ini (lihat jenisKegiatanApi.js), tidak boleh diubah bebas lewat
         // UI supaya tidak dipakai untuk menghindari cek bentrok yang lebih ketat.
-        setKelompok((p?.kelompokBaku ?? []).map((k) => ({ ...k, personel: [], baku: true })))
+        const kelompokBaku = p?.kelompokBaku ?? []
+        // Kalau jenis kegiatan ini tidak punya struktur satgas baku (mis. KRYD,
+        // OPERASI KONTINJENSI), langsung sediakan 1 Tim kosong -- supaya
+        // pencarian/penambahan personel bisa dipakai seketika, tidak perlu
+        // klik "+ Tim" dulu secara manual.
+        setKelompok(
+          kelompokBaku.length > 0
+            ? kelompokBaku.map((k) => ({ ...k, personel: [], baku: true }))
+            : [{ nama: 'TIM 1', sifat: 'pelaksana', personel: [], baku: false }],
+        )
         setKelompokAktifIdx(0)
         setBentrokPerNrp({})
         setTampilkanKonfirmasiBentrok(false)
@@ -199,6 +212,44 @@ export default function BuatSprin() {
       clearTimeout(timer)
     }
   }, [pencarianPersonel, filterSatuanFungsi])
+
+  // Cek bentrok untuk hasil pencarian saat ini juga (bukan cuma personel yang
+  // sudah ditambahkan) -- supaya kelihatan dari daftar hasil, sebelum diklik.
+  // Pakai tanggal/jam/durasi Sprin yang sedang disusun + sifat kelompok yang
+  // sedang aktif (default PELAKSANA kalau belum ada kelompok aktif).
+  useEffect(() => {
+    let dibatalkan = false
+    if (hasilPencarian.length === 0) {
+      setBentrokHasilPencarian({})
+      return
+    }
+    const sifatAktif = kelompokAktif?.sifat === 'pengendali' ? 'PENGENDALI' : 'PELAKSANA'
+    Promise.all(
+      hasilPencarian.map((p) =>
+        ambilRiwayatPenugasanNrp(p.nrp)
+          .then((riwayat) => [
+            p.nrp,
+            cekBentrok(
+              {
+                tanggalMulai,
+                tanggalSelesai,
+                jamApel,
+                durasiJam: durasiJam ? Number(durasiJam) : (preset?.perkiraanJam ?? undefined),
+                sifat: sifatAktif,
+              },
+              riwayat,
+            ),
+          ])
+          .catch(() => [p.nrp, []]),
+      ),
+    ).then((hasil) => {
+      if (!dibatalkan) setBentrokHasilPencarian(Object.fromEntries(hasil))
+    })
+    return () => {
+      dibatalkan = true
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [hasilPencarian, tanggalMulai, tanggalSelesai, jamApel, durasiJam, kelompokAktif?.sifat])
 
   // BR-06/08: kalau tanggal/jam apel/durasi diubah SETELAH ada personel yang
   // sudah ditempatkan, status bentrok mereka jadi basi (masih pakai nilai
@@ -992,23 +1043,33 @@ export default function BuatSprin() {
             Sumber: roster KUATPERS aktif.
           </div>
           <div className="mt-2 max-h-44 space-y-1 overflow-y-auto text-xs">
-            {hasilPencarian.map((p) => (
-              <button
-                key={p.nrp}
-                type="button"
-                onClick={() => tambahPersonelKeKelompokAktif(p)}
-                className="flex w-full items-center gap-2 rounded px-2.5 py-2 text-left hover:opacity-70"
-                style={{ border: '1px solid #DDE3EA' }}
-              >
-                <IconPlus size={13} className="shrink-0" color="#67788C" />
-                <div className="min-w-0 flex-1">
-                  <div className="truncate font-medium">{p.pangkat} {p.nama}</div>
-                  <div className="truncate" style={{ color: '#67788C', fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Consolas, monospace' }}>
-                    {p.nrp} · {p.jabatanStruktur}
+            {hasilPencarian.map((p) => {
+              const konflik = bentrokHasilPencarian[p.nrp] ?? []
+              const menonjol = konflik.some((k) => k.menonjol)
+              return (
+                <button
+                  key={p.nrp}
+                  type="button"
+                  onClick={() => tambahPersonelKeKelompokAktif(p)}
+                  className="flex w-full items-center gap-2 rounded px-2.5 py-2 text-left hover:opacity-70"
+                  style={{ border: menonjol ? '1px solid #B3261E' : '1px solid #DDE3EA' }}
+                >
+                  <IconPlus size={13} className="shrink-0" color="#67788C" />
+                  <div className="min-w-0 flex-1">
+                    <div className="truncate font-medium">{p.pangkat} {p.nama}</div>
+                    <div className="truncate" style={{ color: '#67788C', fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Consolas, monospace' }}>
+                      {p.nrp} · {p.jabatanStruktur}
+                    </div>
+                    {konflik.length > 0 && (
+                      <div className="mt-0.5 truncate" style={{ color: menonjol ? '#B3261E' : '#67788C' }}>
+                        {menonjol ? '⚠ Bentrok: ' : 'Catatan: '}
+                        {konflik.map((k) => k.nomorLengkap).join(', ')}
+                      </div>
+                    )}
                   </div>
-                </div>
-              </button>
-            ))}
+                </button>
+              )
+            })}
           </div>
 
           {bisaTambahNonKuatpers && !formNonKuatpers && (
